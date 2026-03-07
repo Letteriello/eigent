@@ -349,6 +349,7 @@ export const mcpServiceIconMap: ServiceIconMap = {
   // Twitter/X
   twitter: TwitterIcon,
   x: TwitterIcon,
+  'x(twitter)': TwitterIcon,
   'twitter mcp': TwitterIcon,
   'twitter toolkit': TwitterIcon,
 

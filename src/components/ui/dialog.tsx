@@ -38,7 +38,9 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'bg-black/50 fixed inset-0 z-50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      'fixed inset-0 z-50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      // Theme-aware: dark overlay for better focus
+      'bg-black/50 dark:bg-black/70',
       className
     )}
     {...props}
@@ -48,19 +50,33 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 export type DialogOverlayVariant = 'default' | 'dark';
 
+/**
+ * Dialog variant for styling
+ * - 'default': uses existing popup-* tokens
+ * - 'shadcn': uses CSS variables (--card, --border, etc.) for theme-aware styling
+ */
+export type DialogVariant = 'default' | 'shadcn';
+
 // Size variants for dialog content
 const dialogContentVariants = cva(
-  'fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-0 border border-solid border-popup-border bg-popup-bg shadow-perfect duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl max-h-[90vh] flex flex-col overflow-hidden',
+  'fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-0 shadow-perfect duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl max-h-[90vh] flex flex-col overflow-hidden',
   {
     variants: {
+      /** Size of the dialog */
       size: {
         sm: 'max-w-[400px]',
         md: 'max-w-[600px]',
         lg: 'max-w-[900px]',
       },
+      /** Visual style variant */
+      variant: {
+        default: 'border border-solid border-popup-border bg-popup-bg',
+        shadcn: 'border bg-[var(--card)] text-[var(--card-foreground)]',
+      },
     },
     defaultVariants: {
       size: 'md',
+      variant: 'default',
     },
   }
 );
@@ -76,6 +92,8 @@ interface DialogContentProps
   onClose?: () => void;
   /** Overlay behind the dialog: 'default' (transparent) or 'dark' (black overlay) */
   overlayVariant?: DialogOverlayVariant;
+  /** Visual style: 'default' (existing tokens) or 'shadcn' (CSS variables) */
+  variant?: DialogVariant;
 }
 
 const DialogContent = React.forwardRef<
@@ -87,6 +105,7 @@ const DialogContent = React.forwardRef<
       className,
       children,
       size,
+      variant = 'default',
       showCloseButton = true,
       closeButtonClassName,
       closeButtonIcon,
@@ -108,7 +127,7 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          dialogContentVariants({ size }),
+          dialogContentVariants({ size, variant }),
           overlayVariant === 'dark' && 'z-[51]',
           className
         )}

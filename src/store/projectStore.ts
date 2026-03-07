@@ -812,9 +812,7 @@ const projectStore = create<ProjectStore>()((set, get) => ({
 
   // Ensure an active project exists - can be called from useEffect (not during render)
   ensureActiveProject: () => {
-    // Avoid get() due to circular dependencies causing "Cannot access get2 before initialization"
-    const state = projectStore.getState();
-    const { projects, activeProjectId, createProject } = state;
+    const { projects, activeProjectId, createProject } = get();
 
     const targetProjectId = activeProjectId;
 
