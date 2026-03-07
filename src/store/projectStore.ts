@@ -797,22 +797,14 @@ const projectStore = create<ProjectStore>()((set, get) => ({
       }
     }
 
-    // If no active project exists or no targetProjectId, create a new project
+    // If no active project exists, return null and let the UI handle project creation
+    // DO NOT create projects here - this function is called during render and
+    // creating projects would cause "Cannot update a component while rendering" error
     if (!targetProjectId || !projects[targetProjectId]) {
       console.log(
-        '[ProjectStore] No active project found, creating new project'
+        '[ProjectStore] No active project found, returning null (UI should handle creation)'
       );
-      const newProjectId = createProject('New Project', 'Auto-created project');
-      // Get updated state after project creation
-      const updatedState = get();
-      const newProject = updatedState.projects[newProjectId];
-      if (
-        newProject &&
-        newProject.activeChatId &&
-        newProject.chatStores[newProject.activeChatId]
-      ) {
-        return newProject.chatStores[newProject.activeChatId];
-      }
+      return null;
     }
 
     return null;

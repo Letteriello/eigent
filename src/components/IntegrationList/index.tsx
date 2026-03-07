@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/tooltip';
 import { CircleAlert, Settings2 } from 'lucide-react';
 
-import ellipseIcon from '@/assets/mcp/Ellipse-25.svg';
 import {
   Select,
   SelectContent,
@@ -35,6 +34,7 @@ import {
   type IntegrationItem,
 } from '@/hooks/useIntegrationManagement';
 import { getProxyBaseURL } from '@/lib';
+import { getMCPServiceIcon } from '@/lib/mcpServiceIcons';
 import { OAuth } from '@/lib/oauth';
 import { MCPEnvDialog } from '@/pages/Connectors/components/MCPEnvDialog';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -340,18 +340,15 @@ export default function IntegrationList({
               }
             >
               {isSelectMode ? (
-                <div className="gap-xs flex items-center">
+                <div className="flex items-center gap-xs">
                   {(isSelectMode || showStatusDot) && (
-                    <img
-                      src={ellipseIcon}
-                      alt="icon"
-                      className="mr-2 h-3 w-3"
-                      style={{
-                        filter: isInstalled
-                          ? 'grayscale(0%) brightness(0) saturate(100%) invert(41%) sepia(99%) saturate(749%) hue-rotate(81deg) brightness(95%) contrast(92%)'
-                          : 'none',
-                      }}
-                    />
+                    <div className="mr-2 flex-shrink-0">
+                      {getMCPServiceIcon(
+                        item.name,
+                        20,
+                        isInstalled ? 'text-green-500' : 'text-gray-400'
+                      )}
+                    </div>
                   )}
                   <div className={titleClassName}>{item.name}</div>
                   <div className="flex items-center">
@@ -361,19 +358,16 @@ export default function IntegrationList({
                   </div>
                 </div>
               ) : (
-                <div className="gap-xs flex w-full flex-row items-center justify-between">
-                  <div className="gap-xs flex flex-row items-center">
+                <div className="flex w-full flex-row items-center justify-between gap-xs">
+                  <div className="flex flex-row items-center gap-xs">
                     {showStatusDot && (
-                      <img
-                        src={ellipseIcon}
-                        alt="icon"
-                        className="mr-2 h-3 w-3"
-                        style={{
-                          filter: isInstalled
-                            ? 'grayscale(0%) brightness(0) saturate(100%) invert(41%) sepia(99%) saturate(749%) hue-rotate(81deg) brightness(95%) contrast(92%)'
-                            : 'none',
-                        }}
-                      />
+                      <div className="mr-2 flex-shrink-0">
+                        {getMCPServiceIcon(
+                          item.name,
+                          20,
+                          isInstalled ? 'text-green-500' : 'text-gray-400'
+                        )}
+                      </div>
                     )}
                     <div className={titleClassName}>{item.name}</div>
                     <div className="flex items-center">
@@ -387,7 +381,7 @@ export default function IntegrationList({
                       </Tooltip>
                     </div>
                   </div>
-                  <div className="gap-md flex flex-row items-center">
+                  <div className="flex flex-row items-center gap-md">
                     {showConfigButton && (
                       <Button
                         type="button"
@@ -455,8 +449,8 @@ export default function IntegrationList({
             </div>
 
             {!isSelectMode && showSelect && (
-              <div className="mt-6 gap-md border-border-secondary pt-6 flex w-full flex-row items-center border-x-0 border-b-0 border-solid">
-                <div className="gap-md flex w-full flex-row items-center justify-between">
+              <div className="mt-6 flex w-full flex-row items-center gap-md border-x-0 border-b-0 border-solid border-border-secondary pt-6">
+                <div className="flex w-full flex-row items-center justify-between gap-md">
                   <div className="text-body-md text-text-body">
                     {' '}
                     Default {item.name}

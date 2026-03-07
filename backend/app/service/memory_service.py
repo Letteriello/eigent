@@ -23,7 +23,6 @@ from typing import Any
 
 from camel.embeddings import OpenAIEmbedding
 from camel.storages import QdrantStorage
-from pydantic import UUID4
 
 from app.component.environment import env
 from app.model.enums import MemoryType

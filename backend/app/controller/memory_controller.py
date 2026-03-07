@@ -16,7 +16,7 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.model.enums import MemoryType
@@ -126,11 +126,9 @@ async def delete_memory(memory_id: str):
 
 @router.get("", response_model=list[MemoryResponse], name="list memories")
 async def list_memories(
-    memory_type: MemoryType | None = Query(
-        None, description="Filter by memory type"
-    ),
-    agent_id: str | None = Query(None, description="Filter by agent ID"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum results"),
+    memory_type: MemoryType | None = None,
+    agent_id: str | None = None,
+    limit: int = 100,
 ):
     """List memories with optional filters.
 
