@@ -18,6 +18,13 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * DropdownMenu variant for styling
+ * - 'default': uses existing tokens (menutabs-*, popup-*)
+ * - 'shadcn': uses CSS variables (--popover, --accent, etc.) for theme-aware styling
+ */
+export type DropdownMenuVariant = 'default' | 'shadcn';
+
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -70,26 +77,47 @@ DropdownMenuSubContent.displayName =
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal>
-    <DropdownMenuPrimitive.Content
-      ref={ref}
-      sideOffset={sideOffset}
-      className={cn(
-        'text-popover-foreground z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden p-xs shadow-md',
-        'origin-[--radix-dropdown-menu-content-transform-origin] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-        className
-      )}
-      style={{
-        borderRadius: 'var(--borderRadius-rounded-lg, 8px)',
-        border: '1px solid var(--border-secondary, #CCC)',
-        background: 'var(--fill-default, #FFF)',
-      }}
-      {...props}
-    />
-  </DropdownMenuPrimitive.Portal>
-));
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
+    variant?: DropdownMenuVariant;
+  }
+>(({ className, variant = 'default', sideOffset = 4, ...props }, ref) => {
+  const contentClasses =
+    variant === 'shadcn'
+      ? // shadcn theme-aware styling
+        'text-[var(--popover-foreground)] bg-[var(--popover)] border-[var(--border)]'
+      : // default styling
+        'text-popover-foreground';
+
+  const contentStyle =
+    variant === 'shadcn'
+      ? {
+          borderRadius: 'var(--radius, 0.5rem)',
+          border: '1px solid var(--border)',
+          background: 'var(--popover)',
+        }
+      : {
+          borderRadius: 'var(--borderRadius-rounded-lg, 8px)',
+          border: '1px solid var(--border-secondary, #CCC)',
+          background: 'var(--fill-default, #FFF)',
+        };
+
+  return (
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.Content
+        ref={ref}
+        sideOffset={sideOffset}
+        className={cn(
+          'z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden p-xs shadow-md',
+          'origin-[--radix-dropdown-menu-content-transform-origin] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+          contentClasses,
+          className
+        )}
+        style={contentStyle}
+        {...props}
+      />
+    </DropdownMenuPrimitive.Portal>
+  );
+});
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<
