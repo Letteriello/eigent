@@ -512,6 +512,10 @@ export function createProcessUtilsMock() {
     cleanupOldVenvs: vi.fn(),
     isBinaryExists: vi.fn(),
     getUvEnv: vi.fn(),
+    getPrebuiltPythonDir: vi.fn(),
+    getPrebuiltTerminalVenvPath: vi.fn(),
+    getTerminalVenvPath: vi.fn(),
+    getVenvPythonPath: vi.fn(),
     mockState: {} as MockEnvironmentState,
 
     setup: (mockState: MockEnvironmentState) => {
@@ -584,6 +588,25 @@ export function createProcessUtilsMock() {
 
       utilsMock.isBinaryExists.mockImplementation(async (name: string) => {
         return mockState.filesystem.binariesExist[name] || false;
+      });
+
+      utilsMock.getPrebuiltPythonDir.mockImplementation(() => {
+        return `${mockState.app.resourcesPath}/python`;
+      });
+
+      utilsMock.getPrebuiltTerminalVenvPath.mockImplementation(() => {
+        return `${mockState.app.resourcesPath}/terminal-venv`;
+      });
+
+      utilsMock.getTerminalVenvPath.mockImplementation((version: string) => {
+        return `${mockState.system.homedir}/.eigent/venvs/terminal-${version}`;
+      });
+
+      utilsMock.getVenvPythonPath.mockImplementation((venvPath: string) => {
+        if (mockState.system.platform === 'win32') {
+          return `${venvPath}\\Scripts\\python.exe`;
+        }
+        return `${venvPath}/bin/python`;
       });
     },
 
