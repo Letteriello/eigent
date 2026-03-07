@@ -184,7 +184,7 @@ describe('Integration Test: Replay Functionality', () => {
         expect(replayChatStores).toHaveLength(2);
 
         const replayChatStore = replayChatStores[1].chatStore;
-        const replayTaskId = replayChatStore.getState().activeTaskId;
+        const replayTaskId = replayChatStore.getState().activeTaskId!;
 
         // The main test: taskId should equal the projectId passed to replayProject
         // In this case we passed generateUniqueId() as the projectId
@@ -403,7 +403,7 @@ describe('Integration Test: Replay Functionality', () => {
       // Should be connected to the replay project now
       expect(chatStore).toBeDefined();
 
-      const currentTaskId = chatStore.activeTaskId;
+      const currentTaskId = chatStore.activeTaskId!;
       expect(currentTaskId).toBeDefined();
 
       // Start a new task on the replay project
@@ -426,7 +426,7 @@ describe('Integration Test: Replay Functionality', () => {
         // Should have a new chatStore for the post-replay task
         expect(newChatStore).toBeDefined();
 
-        const activeTaskId = newChatStore.activeTaskId;
+        const activeTaskId = newChatStore.activeTaskId!;
         const activeTask = newChatStore.tasks[activeTaskId];
 
         expect(activeTask).toBeDefined();
@@ -540,7 +540,7 @@ describe('Integration Test: Replay Functionality', () => {
       const { chatStore } = result.current;
 
       expect(chatStore).toBeDefined();
-      const currentTaskId = chatStore.activeTaskId;
+      const currentTaskId = chatStore.activeTaskId!;
 
       // Start parallel task
       await chatStore.startTask(
@@ -950,7 +950,7 @@ describe('Issue #619 - Duplicate Task Boxes after replay', () => {
         expect(replayChatStores.length).toBeGreaterThan(1);
 
         const replayChatStore = replayChatStores[1].chatStore; // Skip the empty initial one
-        const replayTaskId = replayChatStore.getState().activeTaskId;
+        const replayTaskId = replayChatStore.getState().activeTaskId!;
         const replayTask = replayChatStore.getState().tasks[replayTaskId];
 
         // THE MAIN TEST: First question in replay should match original user message
