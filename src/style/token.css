@@ -690,6 +690,49 @@
     --bg-dark-default: var(--colors-off-black-100);
     --bg-page-default: var(--colors-off-white-100);
     --background: var(--bg-page);
+
+    /* ========== shadcn/ui Design System - Light ========== */
+    /* Cores harmônicas baseadas no shadcn/ui para migração gradual */
+
+    /* Cores primárias */
+    --primary: #155dfc;
+    --primary-foreground: #ffffff;
+
+    /* Cores destructivas (erro) */
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+
+    /* Cores de sucesso */
+    --success: #22c55e;
+    --success-foreground: #ffffff;
+
+    /* Cores de aviso */
+    --warning: #f59e0b;
+    --warning-foreground: #ffffff;
+
+    /* Muted colors */
+    --muted: #f5f5f4;
+    --muted-foreground: #78716c;
+
+    /* Accent */
+    --accent: #fafafa;
+    --accent-foreground: #18181b;
+
+    /* Card */
+    --card: #ffffff;
+    --card-foreground: #09090b;
+
+    /* Popover */
+    --popover: #ffffff;
+    --popover-foreground: #09090b;
+
+    /* Border e Input */
+    --border: #e5e5e5;
+    --input: #e5e5e5;
+    --ring: #155dfc;
+
+    /* Radius */
+    --radius: 0.5rem;
   }
 
   .root,
@@ -831,49 +874,6 @@
     --text-error: var(--colors-red-400);
     --border-subtle: var(--colors-primary-7);
     --border-subtle-strong: var(--colors-primary-6);
-
-    /* ========== shadcn/ui Design System ========== */
-    /* Cores harmônicas baseadas no shadcn/ui para migraçãogradual */
-
-    /* Cores primárias */
-    --primary: #155dfc;
-    --primary-foreground: #ffffff;
-
-    /* Cores destructivas (erro) */
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
-
-    /* Cores de sucesso */
-    --success: #22c55e;
-    --success-foreground: #ffffff;
-
-    /* Cores de aviso */
-    --warning: #f59e0b;
-    --warning-foreground: #ffffff;
-
-    /* Muted colors */
-    --muted: #f5f5f4;
-    --muted-foreground: #78716c;
-
-    /* Accent */
-    --accent: #fafafa;
-    --accent-foreground: #18181b;
-
-    /* Card */
-    --card: #ffffff;
-    --card-foreground: #09090b;
-
-    /* Popover */
-    --popover: #ffffff;
-    --popover-foreground: #09090b;
-
-    /* Border e Input */
-    --border: #e5e5e5;
-    --input: #e5e5e5;
-    --ring: #155dfc;
-
-    /* Radius */
-    --radius: 0.5rem;
 
     /* ========== shadcn/ui Design System (Dark) ========== */
     /* Cores harmônicas baseadas no shadcn/ui */
