@@ -1,0 +1,9 @@
+{
+  "name": "wrap-up",
+  "version": "0.1.0",
+  "description": "Autonomous session wrap-up checklist with versioning, memory, and self-improvement",
+  "author": {
+    "name": "Gabriel",
+    "email": "gabri@eigent.ai"
+  }
+}

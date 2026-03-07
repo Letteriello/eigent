@@ -24,6 +24,7 @@ from fastapi import FastAPI
 from app.controller import (
     chat_controller,
     health_controller,
+    memory_controller,
     model_controller,
     task_controller,
     tool_controller,
@@ -70,6 +71,11 @@ def register_routers(app: FastAPI, prefix: str = "") -> None:
             "router": tool_controller.router,
             "tags": ["tool"],
             "description": "Tool installation and management",
+        },
+        {
+            "router": memory_controller.router,
+            "tags": ["memory"],
+            "description": "Persistent agent memory storage and retrieval",
         },
     ]
 

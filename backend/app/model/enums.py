@@ -22,6 +22,21 @@ class Status(str, Enum):
     done = "done"
 
 
+class MemoryType(str, Enum):
+    """Types of memories that agents can store.
+
+    - fact: Factual information (e.g., "user prefers dark mode")
+    - preference: User preferences and settings
+    - context: Current working context and project info
+    - learned: Knowledge learned from interactions
+    """
+
+    fact = "fact"
+    preference = "preference"
+    context = "context"
+    learned = "learned"
+
+
 DEFAULT_SUMMARY_PROMPT = (
     "After completing the task, please generate"
     " a summary of the entire task completion. "
