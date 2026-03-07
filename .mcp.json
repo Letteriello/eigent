@@ -1,0 +1,18 @@
+{
+  "notebooklm": {
+    "command": "uv",
+    "args": [
+      "tool",
+      "run",
+      "--with",
+      "pydantic==2.10.5",
+      "--with",
+      "rich==13.9.4",
+      "notebooklm-mcp"
+    ]
+  },
+  "serena": {
+    "command": "C:/Users/gabri/.claude/serena-venv/Scripts/serena-mcp-server.exe",
+    "args": []
+  }
+}
