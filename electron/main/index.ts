@@ -2983,12 +2983,9 @@ async function createWindow() {
     );
   }
 
-  // Load content
-  // Disable cache in development mode to ensure changes are always reflected
+  // Load content - use original loading method
   if (VITE_DEV_SERVER_URL) {
-    win.webContents.session.setCacheEnabled(false);
     win.loadURL(VITE_DEV_SERVER_URL);
-    win.webContents.openDevTools();
   } else {
     win.loadFile(indexHtml);
   }
