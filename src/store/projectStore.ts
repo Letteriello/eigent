@@ -79,6 +79,7 @@ interface ProjectStore {
     setActive?: boolean
   ) => string;
   setActiveProject: (projectId: string) => void;
+  ensureActiveProject: () => void;
   removeProject: (projectId: string) => void;
   updateProject: (
     projectId: string,

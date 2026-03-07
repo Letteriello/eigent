@@ -189,9 +189,6 @@ export default function MemoryPage() {
           placeholder={t('agents.memory-search-placeholder')}
           value={searchQuery}
           onChange={handleSearch}
-          onClear={() => {
-            setSearchQuery('');
-          }}
         />
       </div>
 

@@ -571,6 +571,39 @@
     --bg-dark-tertiary: var(--colors-off-black-10);
     --bg-dark-default: var(--colors-off-black-100);
     --bg-page-default: var(--colors-off-white-100);
+
+    /* shadcn/ui variables for transparent theme */
+    /* Primary */
+    --primary: var(--colors-primary-default);
+    --primary-foreground: var(--colors-primary-1);
+
+    /* Secondary */
+    --secondary: var(--colors-primary-2);
+    --secondary-foreground: var(--colors-primary-10);
+
+    /* Muted */
+    --muted: var(--colors-primary-2);
+    --muted-foreground: var(--colors-primary-5);
+
+    /* Accent */
+    --accent: var(--colors-primary-2);
+    --accent-foreground: var(--colors-primary-10);
+
+    /* Card */
+    --card: var(--colors-white-100);
+    --card-foreground: var(--colors-primary-10);
+
+    /* Popover */
+    --popover: var(--colors-white-100);
+    --popover-foreground: var(--colors-primary-10);
+
+    /* Border e Input */
+    --border: var(--colors-primary-4);
+    --input: var(--colors-primary-4);
+    --ring: var(--colors-primary-default);
+
+    /* Radius */
+    --radius: 0.5rem;
   }
 
   .root,
