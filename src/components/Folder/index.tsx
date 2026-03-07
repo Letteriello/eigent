@@ -232,16 +232,21 @@ export const FileTree: React.FC<FileTreeProps> = ({
 };
 
 function downloadByBrowser(url: string) {
+  interface DownloadResult {
+    success: boolean;
+    path?: string;
+    error?: string;
+  }
   window.ipcRenderer
     .invoke('download-file', url)
-    .then((result) => {
+    .then((result: DownloadResult) => {
       if (result.success) {
         console.log('download-file success:', result.path);
       } else {
         console.error('download-file error:', result.error);
       }
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.error('download-file error:', error);
     });
 }
@@ -304,7 +309,7 @@ export default function Folder({ data: _data }: { data?: Agent }) {
           chatStore.setSelectedFile(chatStore.activeTaskId as string, file);
           setLoading(false);
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           console.error('read-file-dataurl error:', error);
           setLoading(false);
         });
