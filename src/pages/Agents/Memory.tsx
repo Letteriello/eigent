@@ -84,7 +84,8 @@ export default function MemoryPage() {
   }, [fetchMemories, fetchStats]);
 
   // Search handler
-  const handleSearch = (query: string) => {
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
     setSearchQuery(query);
     if (query.trim()) {
       searchMemories(query);
@@ -319,7 +320,7 @@ export default function MemoryPage() {
             >
               {t('agents.memory-cancel')}
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
+            <Button variant="warning" onClick={handleDeleteConfirm}>
               {t('agents.memory-delete')}
             </Button>
           </DialogFooter>
