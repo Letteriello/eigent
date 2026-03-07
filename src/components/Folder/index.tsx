@@ -327,12 +327,12 @@ export default function Folder({ data: _data }: { data?: Agent }) {
     // all other files call open-file interface, the backend handles download and parsing
     window.ipcRenderer
       .invoke('open-file', file.type, file.path, isShowSourceCode)
-      .then((res) => {
+      .then((res: string) => {
         setSelectedFile({ ...file, content: res });
         chatStore.setSelectedFile(chatStore.activeTaskId as string, file);
         setLoading(false);
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error('open-file error:', error);
         setLoading(false);
       });
