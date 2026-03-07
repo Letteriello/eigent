@@ -14,13 +14,22 @@
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Skeleton component for loading states
+ * Uses CSS variables for theme-aware styling
+ */
 function Skeleton({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('bg-primary/10 animate-pulse rounded-md', className)}
+      className={cn(
+        'animate-pulse rounded-md',
+        // Theme-aware: use muted colors that work in both light/dark
+        'bg-[var(--muted)] dark:bg-[var(--muted)]',
+        className
+      )}
       {...props}
     />
   );

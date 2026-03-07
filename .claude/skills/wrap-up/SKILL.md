@@ -2,10 +2,11 @@
 name: wrap-up
 description: |
   Executa um checklist autônomo de fim de sessão para encerrar o trabalho de forma organizada.
-  Use esta skill quando o usuário quiser encerrar a sessão atual com versionamento automático,
-  organização de memória e auto-melhoria. Inclui triggers: 'wrap up', 'close session', 'end session',
-  'wrap things up', 'close out this task', ou invocação explícita /wrap-up.
-  Esta skill opera autonomamente sem pedir aprovação do usuário em cada passo.
+  Use esta skill SEMPRE que o usuário quiser encerrar a sessão atual - não espere confirmação.
+  Inclui triggers: 'wrap up', 'close session', 'end session', 'wrap things up', 'close out this task',
+  ou invocação explícita /wrap-up. Esta skill opera de forma completamente autônoma.
+  Ela executa 4 fases: Ship It (versionamento + organização), Remember It (memória hierárquica),
+  Review & Apply (auto-melhoria), e Publish It (documentação).
 triggers:
   - wrap up
   - close session
@@ -23,98 +24,125 @@ Esta skill executa um checklist autônomo de fim de sessão em 4 fases, sem inte
 
 ## Phase 1: Ship It
 
-Execute esta fase primeiro para garantir que todo o trabalho esteja versionado e publicado.
+**Objetivo**: Resolver o problema de desenvolvedores fecharem o computador sem commitar e organizar o trabalho. Esta fase executa como um checklist silencioso e autônomo.
 
-### 1.1 Git Status e Versionamento
+### 1.1 Versionamento Automático (Commit e Push)
 
-Execute `git status` para verificar mudanças não commitadas. Se houver mudanças:
-- Faça auto-commit na branch main com mensagem descritiva
+Execute `git status` no diretório do repositório. Se houver mudanças não commitadas:
+- Faça **auto-commit diretamente na branch main** com mensagem descritiva (analise os arquivos modificados para gerar mensagem meaningful)
 - Execute `git push` para o remote configurado
+- Não peça confirmação - faça automaticamente
 
-### 1.2 File Placement Check
+### 1.2 File Placement Check (Verificação e Organização)
 
-Verifique se existem arquivos soltos que precisam ser organizados:
+**Arquivos de documentação FORA DO LUGAR** - movimento OBRIGATÓRIO:
+- Qualquer `.md`, `.pdf`, `.docx`, `.xlsx` ou `.pptx` na **raiz do workspace** ou no meio do código-fonte deve ser **movido compulsoriamente para `docs/`**
+- Execute o move automaticamente sem perguntar
 
-1. **Arquivos de documentação na raiz**: Arquivos `.md` ou `.pdf` soltos na raiz do projeto devem ser movidos para a pasta `docs/`
-2. **Convenções de nomenclatura**: Valide que arquivos seguem os padrões do projeto
+**Convenções de nomenclatura**:
+- Valide se arquivos seguem os padrões do projeto
+- Renomeie automaticamente arquivos que violem regras de nomenclatura
+- Documente cada ação no output
 
-Para cada arquivo encontrado fora do lugar:
-- Execute o move automaticamente
-- Documente a ação no output
+### 1.3 Gatilho de Deploy
 
-### 1.3 Deploy Script
+- Verifique se existe script de deploy configurado (package.json scripts, arquivos de deploy, CI/CD)
+- **Se existir**: execute-o imediatamente
+- **Se não existir**: pule a etapa automaticamente - não solicite confirmação
 
-Se existir script de deploy configurado no projeto (verifique package.json scripts ou arquivos de deploy):
-- Execute o script de deploy
+### 1.4 Task Cleanup (Limpeza de Tarefas)
 
-### 1.4 Task Cleanup
-
-Se existir lista de tarefas (TaskList):
-- Marque todos os itens com status 'completed' como 'done'
-- Identifique tarefas pendentes e documente para próxima sessão
+- Acesse a lista de tarefas do sistema (TaskList)
+- Itens **finalizados** = marque como **"done"**
+- Tarefas **obsoletas, em andamento ou órfãs** = sinalize adequadamente
+- Documente tarefas pendentes para próxima sessão
 
 ---
 
 ## Phase 2: Remember It
 
-Revise os aprendizados da sessão e categorize a memória nos níveis apropriados.
+**Objetivo**: Evitar "Context Rot" catalogando aprendizados em níveis de escopo rígidos. Este é o motor de "juros compostos" da automação.
 
-### 2.1 Níveis de Memória
+### 2.1 Os 4 Níveis de Memória (Obrigatórios)
 
-Revise a conversa e categorize aprendizados:
+Revise a conversa e categorize CADA aprendizado no nível correto:
 
-| Nível | Quando usar |
-|-------|-------------|
-| **Auto memory** | Padrões de debug, quirks do projeto, comportamentos inesperados |
-| **CLAUDE.md** | Convenções permanentes, decisões de arquitetura, estruturas fixed |
-| **.claude/rules/** | Instruções focadas em tópicos/caminhos específicos (use frontmatter `paths:`) |
-| **CLAUDE.local.md** | Notas efêmeras, WIP, credenciais de sandbox, contexto local temporário |
+| Nível | Quando usar | Arquivo/Destino |
+|-------|-------------|-----------------|
+| **Auto memory** | Padrões de debug, insights que o Claude descobriu sozinho, quirks não documentados | `memory/MEMORY.md` ou arquivos temáticos |
+| **CLAUDE.md** | Convenções permanentes, decisões de arquitetura, regras globais | Arquivo raiz CLAUDE.md do projeto |
+| **.claude/rules/** | Diretrizes específicas por tópico/caminho (use frontmatter `paths:`) | Arquivos em `.claude/rules/` |
+| **CLAUDE.local.md** | Notas efêmeras, WIP, URLs de teste locais, credenciais sandbox | Arquivo CLAUDE.local.md local |
 
-### 2.2 Processo de Revisão
+### 2.2 Framework de Decisão (Anti-Duplicação)
+
+Use esta árvore de decisões para alocar memória autonomamente:
+
+```
+É uma convenção permanente do projeto? → CLAUDE.md ou .claude/rules/
+Aplica-se apenas a tipos específicos de arquivos? → .claude/rules/ com frontmatter paths:
+É um padrão que o Claude descobriu observando o código? → Auto memory
+É contexto puramente pessoal ou temporário? → CLAUDE.local.md
+As informações já estão redundantes? → Use @import reference
+```
+
+### 2.3 Processo de Revisão
 
 Para cada aprendizado identificado:
-1. Determine o nível apropriado
-2. Se não existir arquivo para esse nível, crie
-3. Adicione a memória no formato apropriado
-
-### 2.3 Auto Memory (se aplicável)
-
-Se houver memórias novas para auto memory:
-- Edite `C:\Users\gabri\.claude\projects\C--Users-gabri-Desktop-eigent\memory\MEMORY.md` ou crie arquivos temáticos
+1. Aplique o Framework de Decisão acima
+2. Se não existir arquivo para o nível, crie-o
+3. Use **@import references** em vez de duplicar conteúdo
+4. Adicione a memória no formato apropriado
 
 ---
 
 ## Phase 3: Review & Apply
 
-Analise a conversa em busca de padrões que podem ser melhorados.
+**Objetivo**: Motor de auto-melhoria contínua (Self-improvement Loop). Ataca a ineficiência de corrigir o mesmo erro repetidamente em diferentes sessões.
 
-### 3.1 Análise de Falhas
+### 3.1 Auditoria Silenciosa da Sessão
 
-Procure por:
+Analise TODO o histórico da conversa em busca de falhas. Se sessão curta/routineira → declare "Nothing to improve" e avance.
+
+**4 Categorias de Findings:**
 
 | Categoria | O que procurar |
 |-----------|----------------|
-| **Skill gaps** | Situações onde uma skill existiria mas não foi usada, ou onde uma skill seria útil |
-| **Friction** | Passos manuais repetitivos que poderiam ser automatizados |
-| **Knowledge** | Lacunas de contexto que causaram confusão ou retrabalho |
+| **Skill gap** | Dificuldades, erros de código, alucinações, múltiplas tentativas para acertar |
+| **Friction** | Passos manuais repetitivos que deveriam ser automáticos |
+| **Knowledge** | Fatos sobre o projeto, preferências suas, configurações que o Claude não sabia mas deveria saber |
+| **Automation** | Padrões repetitivos candidatos a novas Skills/Hooks/scripts |
 
-### 3.2 Auto-Aplicação de Correções
+### 3.2 Execução Zero-Click (Auto-Aplicação)
 
-Para cada problema identificado:
-1. Escreva a correção diretamente no arquivo apropriado (CLAUDE.md, rules, etc.)
-2. Aplique imediatamente - não peça permissão
+**REGRA DE OURO**: Auto-aplique TODAS as descobertas imediatamente — NÃO peça aprovação.
 
-### 3.3 Output Consolidado
+Mapeie cada descoberta para o tipo de ação correto:
+
+| Tipo de Descoberta | Ação |
+|--------------------|------|
+| Convenções globais | Editar CLAUDE.md |
+| Regras específicas | Criar/atualizar em `.claude/rules/` |
+| Insights do Claude | Salvar na Auto memory |
+| Friction complexa | Documentar especificação para nova Skill/Hook |
+| Contexto pessoal | Editar CLAUDE.local.md |
+
+### 3.3 Relatório Consolidado
 
 Ao final, apresente:
 
 ```
 ## Findings (applied)
-- [Item 1]: Correção aplicada em [arquivo]
-- [Item 2]: Correção aplicada em [arquivo]
+- [Categoria]: [Descrição] → [Arquivo] [Ação tomada]
+Exemplo: ✅ Skill gap: Cost estimates were wrong multiple times → [CLAUDE.md] Added token counting reference table
 
 ## No action needed
-- [Item que não requer ação]
+- [Descoberta que já estava documentada]
+```
+
+Se sessão curta/routineira:
+```
+Nothing to improve - session was routine.
 ```
 
 ---
@@ -129,7 +157,7 @@ Procure por:
 - Soluções técnicas difíceissuperadas
 - Descobertas importantes sobre o codebase
 - Correções de bugs significativos
-- Novasfeatures implementadas
+- Novas features implementadas
 
 ### 4.2 Criação de Rascunho
 

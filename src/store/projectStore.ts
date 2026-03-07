@@ -810,6 +810,26 @@ const projectStore = create<ProjectStore>()((set, get) => ({
     return null;
   },
 
+  // Ensure an active project exists - can be called from useEffect (not during render)
+  ensureActiveProject: () => {
+    // Avoid get() due to circular dependencies causing "Cannot access get2 before initialization"
+    const state = projectStore.getState();
+    const { projects, activeProjectId, createProject } = state;
+
+    const targetProjectId = activeProjectId;
+
+    if (targetProjectId && projects[targetProjectId]) {
+      const project = projects[targetProjectId];
+      if (project.activeChatId && project.chatStores[project.activeChatId]) {
+        return; // Already has project and chat store
+      }
+    }
+
+    // Create new project if none exists
+    console.log('[ProjectStore] ensureActiveProject: Creating new project');
+    createProject('New Project', 'Auto-created project');
+  },
+
   // Project-level queued messages management
   addQueuedMessage: (
     projectId: string,
