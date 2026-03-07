@@ -45,7 +45,7 @@ const useChatStoreAdapter = (): {
   // Ensure active project exists after mount (not during render)
   useEffect(() => {
     projectStore.ensureActiveProject();
-  }, []);
+  }, [projectStore]);
 
   // Get the active chat store from project store
   // This creates a hook-like interface for the vanilla store

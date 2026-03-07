@@ -55,7 +55,7 @@ export const useInstallationSetup = () => {
     // Immediately check backend status once
     const checkBackendStatus = async () => {
       try {
-        const backendPort = await window.electronAPI.getBackendPort();
+        const backendPort = await window.electronAPI?.getBackendPort?.();
         if (backendPort && backendPort > 0) {
           console.log(
             '[useInstallationSetup] Backend immediately detected on port:',
@@ -101,7 +101,7 @@ export const useInstallationSetup = () => {
       // This is a fallback in case the backend-ready event is missed
       const pollInterval = setInterval(async () => {
         try {
-          const backendPort = await window.electronAPI.getBackendPort();
+          const backendPort = await window.electronAPI?.getBackendPort?.();
           if (backendPort && backendPort > 0) {
             console.log(
               '[useInstallationSetup] Backend poll detected ready on port:',
@@ -170,9 +170,11 @@ export const useInstallationSetup = () => {
 
     const checkToolInstalled = async () => {
       try {
-        const result = await window.ipcRenderer.invoke('check-tool-installed');
+        const result = await window.ipcRenderer?.invoke?.(
+          'check-tool-installed'
+        );
 
-        if (result.success) {
+        if (result?.success) {
           if (result.isInstalled) {
             console.log(
               '[useInstallationSetup] Tools already installed, waiting for backend'
@@ -191,7 +193,7 @@ export const useInstallationSetup = () => {
             setInitState('carousel');
           }
         }
-        return result;
+        return result || { success: false, isInstalled: false };
       } catch (error) {
         console.error(
           '[useInstallationSetup] Tool installation check failed:',
@@ -204,9 +206,9 @@ export const useInstallationSetup = () => {
     const checkBackendStatus = async (_toolResult?: any) => {
       try {
         const installationStatus =
-          await window.electronAPI.getInstallationStatus();
+          await window.electronAPI?.getInstallationStatus?.();
 
-        if (installationStatus.success && installationStatus.isInstalling) {
+        if (installationStatus?.success && installationStatus.isInstalling) {
           startInstallation();
         }
       } catch (err) {
@@ -312,16 +314,16 @@ export const useInstallationSetup = () => {
       }
     };
 
-    window.electronAPI.onInstallDependenciesStart(handleInstallStart);
-    window.electronAPI.onInstallDependenciesLog(handleInstallLog);
-    window.electronAPI.onInstallDependenciesComplete(handleInstallComplete);
-    window.electronAPI.onBackendReady(handleBackendReady);
+    window.electronAPI?.onInstallDependenciesStart?.(handleInstallStart);
+    window.electronAPI?.onInstallDependenciesLog?.(handleInstallLog);
+    window.electronAPI?.onInstallDependenciesComplete?.(handleInstallComplete);
+    window.electronAPI?.onBackendReady?.(handleBackendReady);
 
     return () => {
-      window.electronAPI.removeAllListeners('install-dependencies-start');
-      window.electronAPI.removeAllListeners('install-dependencies-log');
-      window.electronAPI.removeAllListeners('install-dependencies-complete');
-      window.electronAPI.removeAllListeners('backend-ready');
+      window.electronAPI?.removeAllListeners?.('install-dependencies-start');
+      window.electronAPI?.removeAllListeners?.('install-dependencies-log');
+      window.electronAPI?.removeAllListeners?.('install-dependencies-complete');
+      window.electronAPI?.removeAllListeners?.('backend-ready');
     };
   }, [
     startInstallation,
