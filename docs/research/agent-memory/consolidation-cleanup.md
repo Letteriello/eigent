@@ -18,6 +18,7 @@ As agents accumulate memories over time, storage costs grow linearly with memory
 - **Increased API costs**: More embeddings = higher embedding API costs
 
 **Current State in Eigent:**
+
 - MemoryService stores in-memory dict + Qdrant vector DB
 - No deduplication on memory creation
 - Each memory generates a new embedding vector
@@ -25,11 +26,13 @@ As agents accumulate memories over time, storage costs grow linearly with memory
 ### 1.2 Retrieval Quality
 
 Memory retrieval degrades when:
+
 - **Signal-to-noise ratio drops**: Low-importance memories dilute relevant results
 - **Contradictory information**: Conflicting memories confuse the agent
 - **Stale data**: Outdated information may be retrieved instead of current facts
 
 **Impact on Hybrid Search:**
+
 - RRF combines vector + BM25 results
 - More memories = more noise in top-k results
 - Importance scores (0-1) exist but aren't used in retrieval weighting
@@ -37,11 +40,13 @@ Memory retrieval degrades when:
 ### 1.3 Deduplication
 
 Memory deduplication identifies and merges:
+
 - **Exact duplicates**: Same content hash
 - **Semantic duplicates**: High cosine similarity (>0.95) with different wording
 - **Subset memories**: One memory completely contains another
 
 **Current Deduplication:**
+
 - MD5 hash generates memory IDs (prevents exact duplicates at creation)
 - No semantic deduplication implemented
 
@@ -65,21 +70,23 @@ Memory deduplication identifies and merges:
 ```
 
 **Use Cases:**
+
 - Agent learns the same fact multiple times with different phrasing
 - User provides updated context that supersedes previous
 
 **Code Sketch:**
+
 ```python
 async def merge_similar_memories(
-    self, 
+    self,
     similarity_threshold: float = 0.9
 ) -> MergeResult:
     """Merge memories with high semantic similarity."""
     merged_count = 0
-    
+
     # Get all memories
     all_memories = await self.list_memories(limit=10000)
-    
+
     # Compare pairs (O(n²) - optimize for large datasets)
     to_merge = []
     for i, mem_a in enumerate(all_memories):
@@ -87,12 +94,12 @@ async def merge_similar_memories(
             sim = await self._compute_similarity(mem_a, mem_b)
             if sim > similarity_threshold:
                 to_merge.append((mem_a, mem_b, sim))
-    
+
     # Merge each pair
     for mem_a, mem_b, sim in to_merge:
         await self._perform_merge(mem_a, mem_b)
         merged_count += 1
-    
+
     return MergeResult(merged=merged_count)
 ```
 
@@ -117,18 +124,19 @@ async def merge_similar_memories(
    - Low importance (0.0-0.3): Keep for 7 days
 
 **Implementation:**
+
 ```python
 async def cleanup_stale_memories(
-    self, 
+    self,
     max_age_days: int = 30,
     min_importance: float = 0.5
 ) -> CleanupResult:
     """Remove or archive stale memories."""
     deleted = []
-    
+
     for memory in self._memories.values():
         age_days = (datetime.utcnow() - memory["updated_at"]).days
-        
+
         if memory["importance"] < min_importance and age_days > 7:
             await self.delete_memory(memory["id"])
             deleted.append(memory["id"])
@@ -136,7 +144,7 @@ async def cleanup_stale_memories(
             # Archive instead of delete
             await self._archive_memory(memory["id"])
             deleted.append(memory["id"])
-    
+
     return CleanupResult(deleted_count=len(deleted))
 ```
 
@@ -156,12 +164,12 @@ async def cleanup_stale_memories(
 
 **Resolution Strategies:**
 
-| Strategy | When to Use | Action |
-|----------|-------------|--------|
-| Keep Newer | Temporal conflict | Keep memory with more recent timestamp |
-| Keep Higher Importance | Quality conflict | Keep memory with higher importance score |
-| Keep Both + Flag | Ambiguous | Mark both for human review |
-| Merge Context | Partial overlap | Combine into single comprehensive memory |
+| Strategy               | When to Use       | Action                                   |
+| ---------------------- | ----------------- | ---------------------------------------- |
+| Keep Newer             | Temporal conflict | Keep memory with more recent timestamp   |
+| Keep Higher Importance | Quality conflict  | Keep memory with higher importance score |
+| Keep Both + Flag       | Ambiguous         | Mark both for human review               |
+| Merge Context          | Partial overlap   | Combine into single comprehensive memory |
 
 ---
 
@@ -197,6 +205,7 @@ def setup_memory_cleanup():
 **Option B: On-Demand Cleanup**
 
 Triggered by:
+
 - User action in UI (button click)
 - API endpoint call
 - Memory count threshold (e.g., >1000 memories)
@@ -205,19 +214,20 @@ Triggered by:
 
 **Automatic Triggers:**
 
-| Trigger | Action |
-|---------|--------|
-| Memory count > 1000 | Run deduplication |
-| Search quality < threshold | Run cleanup + reindex |
-| Session end | Archive session memories |
-| Agent inactivity > 7 days | Age-based cleanup |
+| Trigger                    | Action                   |
+| -------------------------- | ------------------------ |
+| Memory count > 1000        | Run deduplication        |
+| Search quality < threshold | Run cleanup + reindex    |
+| Session end                | Archive session memories |
+| Agent inactivity > 7 days  | Age-based cleanup        |
 
 **Implementation:**
+
 ```python
 async def on_memory_created(self, memory: MemoryResponse):
     """Trigger cleanup when memory count threshold hit."""
     stats = await self.get_stats()
-    
+
     if stats.total_memories % 1000 == 0:
         logger.info("Memory threshold reached, running deduplication")
         await self.merge_similar_memories(similarity_threshold=0.85)
@@ -249,17 +259,19 @@ async def on_memory_created(self, memory: MemoryResponse):
 ### 4.1 Memory Count Over Time
 
 **Key Metrics:**
+
 - Total memories per agent
 - Memories by type (fact, preference, context, learned)
 - Daily/weekly memory creation rate
 
 **Implementation:**
+
 ```python
 class MemoryMetrics:
     async def track_memory_count(self, agent_id: str) -> dict:
         """Track memory count metrics."""
         stats = await get_memory_service().get_stats()
-        
+
         return {
             "total": stats.total_memories,
             "by_type": stats.by_type,
@@ -269,6 +281,7 @@ class MemoryMetrics:
 ```
 
 **Dashboard Visualization:**
+
 ```
 Memory Count Over Time
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -284,36 +297,38 @@ Memory Count Over Time
 ### 4.2 Retrieval Quality
 
 **Metrics:**
+
 - Average similarity score of top-k results
 - Relevance rating (if user feedback available)
 - Time to retrieve top-k results
 
 **Implementation:**
+
 ```python
 async def measure_retrieval_quality(
-    self, 
+    self,
     test_queries: list[str]
 ) -> RetrievalQualityMetrics:
     """Measure retrieval quality metrics."""
     total_relevance = 0.0
     total_time = 0.0
-    
+
     for query in test_queries:
         start = time.time()
         results = await self.search_memories(
             MemorySearchQuery(query=query, top_k=5)
         )
         elapsed = time.time() - start
-        
+
         # Compute average relevance of top results
         # (simplified - would need ground truth for real metrics)
         avg_relevance = sum(
             r.importance for r in results.memories
         ) / len(results.memories) if results.memories else 0
-        
+
         total_relevance += avg_relevance
         total_time += elapsed
-    
+
     return RetrievalQualityMetrics(
         avg_relevance_score=total_relevance / len(test_queries),
         avg_query_time_ms=total_time / len(test_queries) * 1000
@@ -323,30 +338,32 @@ async def measure_retrieval_quality(
 ### 4.3 Storage Usage
 
 **Metrics:**
+
 - Vector DB storage size
 - In-memory dict size
 - Embedding vector count
 - Qdrant collection size
 
 **Implementation:**
+
 ```python
 async def get_storage_metrics(self) -> StorageMetrics:
     """Get storage usage metrics."""
     storage_path = self._storage_path
-    
+
     # Vector DB size
     db_size = sum(
-        f.stat().st_size 
-        for f in storage_path.rglob("*") 
+        f.stat().st_size
+        for f in storage_path.rglob("*")
         if f.is_file()
     )
-    
+
     # Memory count
     memory_count = len(self._memories)
-    
+
     # Embedding dimension and count
     embedding_count = memory_count  # One per memory
-    
+
     return StorageMetrics(
         vector_db_bytes=db_size,
         memory_count=memory_count,
@@ -370,7 +387,7 @@ async def get_storage_metrics(self) -> StorageMetrics:
 
 class MemoryService:
     # ... existing methods ...
-    
+
     async def merge_similar_memories(
         self,
         similarity_threshold: float = 0.9,
@@ -378,7 +395,7 @@ class MemoryService:
     ) -> ConsolidationResult:
         """Merge semantically similar memories."""
         pass
-    
+
     async def cleanup_stale_memories(
         self,
         max_age_days: int = 30,
@@ -386,14 +403,14 @@ class MemoryService:
     ) -> ConsolidationResult:
         """Remove outdated/low-importance memories."""
         pass
-    
+
     async def detect_contradictions(
         self,
         agent_id: str | None = None
     ) -> list[Contradiction]:
         """Find potentially contradictory memories."""
         pass
-    
+
     async def resolve_contradiction(
         self,
         memory_id_a: str,
@@ -402,7 +419,7 @@ class MemoryService:
     ) -> MemoryResponse:
         """Resolve a contradiction between two memories."""
         pass
-    
+
     async def get_consolidation_metrics(
         self,
         agent_id: str | None = None
@@ -415,13 +432,13 @@ class MemoryService:
 
 **New Endpoints in memory_controller.py:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/memory/consolidate/merge` | Run similarity-based merging |
-| POST | `/api/memory/consolidate/cleanup` | Run stale memory cleanup |
-| GET | `/api/memory/consolidate/contradictions` | List potential contradictions |
-| POST | `/api/memory/consolidate/resolve` | Resolve a contradiction |
-| GET | `/api/memory/consolidation-metrics` | Get consolidation analytics |
+| Method | Endpoint                                 | Description                   |
+| ------ | ---------------------------------------- | ----------------------------- |
+| POST   | `/api/memory/consolidate/merge`          | Run similarity-based merging  |
+| POST   | `/api/memory/consolidate/cleanup`        | Run stale memory cleanup      |
+| GET    | `/api/memory/consolidate/contradictions` | List potential contradictions |
+| POST   | `/api/memory/consolidate/resolve`        | Resolve a contradiction       |
+| GET    | `/api/memory/consolidation-metrics`      | Get consolidation analytics   |
 
 **Request/Response Models:**
 
@@ -486,16 +503,20 @@ class ConsolidationMetrics(BaseModel):
 interface MemoryConsolidationState {
   // Current metrics
   metrics: ConsolidationMetrics | null;
-  
+
   // Operations
   isConsolidating: boolean;
   lastCleanup: Date | null;
-  
+
   // Actions
   runDeduplication: (threshold?: number) => Promise<void>;
   runCleanup: (maxAgeDays?: number) => Promise<void>;
   fetchMetrics: () => Promise<void>;
-  resolveContradiction: (idA: string, idB: string, resolution: string) => Promise<void>;
+  resolveContradiction: (
+    idA: string,
+    idB: string,
+    resolution: string
+  ) => Promise<void>;
 }
 ```
 
@@ -520,24 +541,28 @@ interface MemoryConsolidationState {
 ## 6. Recommended Implementation Plan
 
 ### Phase 1: Basic Consolidation (Week 1)
+
 - [ ] Add `merge_similar_memories()` method
 - [ ] Add `cleanup_stale_memories()` method
 - [ ] Create API endpoints for both
 - [ ] Add manual trigger buttons in UI
 
 ### Phase 2: Metrics & Monitoring (Week 2)
+
 - [ ] Implement `get_consolidation_metrics()`
 - [ ] Add memory count over time tracking
 - [ ] Create analytics dashboard in UI
 - [ ] Add storage usage display
 
 ### Phase 3: Advanced Features (Week 3)
+
 - [ ] Implement contradiction detection
 - [ ] Add LLM-based freshness checking
 - [ ] Create scheduled cleanup jobs
 - [ ] Implement trigger-based cleanup
 
 ### Phase 4: Optimization (Week 4)
+
 - [ ] Optimize similarity computation (faiss index)
 - [ ] Add batch processing for large datasets
 - [ ] Implement incremental cleanup (not full scan)
@@ -575,12 +600,12 @@ class MemoryType(str, Enum):
 
 ## Appendix B: Related Files
 
-| File | Purpose |
-|------|---------|
-| `backend/app/service/memory_service.py` | Core memory service |
-| `backend/app/controller/memory_controller.py` | API endpoints |
-| `backend/app/model/memory.py` | Pydantic models |
-| `backend/app/model/enums.py` | MemoryType enum |
+| File                                          | Purpose                |
+| --------------------------------------------- | ---------------------- |
+| `backend/app/service/memory_service.py`       | Core memory service    |
+| `backend/app/controller/memory_controller.py` | API endpoints          |
+| `backend/app/model/memory.py`                 | Pydantic models        |
+| `backend/app/model/enums.py`                  | MemoryType enum        |
 | `backend/app/agent/toolkit/memory_toolkit.py` | Agent tool integration |
-| `src/store/memoryStore.ts` | Frontend store |
-| `src/pages/Agents/Memory.tsx` | Memory UI page |
+| `src/store/memoryStore.ts`                    | Frontend store         |
+| `src/pages/Agents/Memory.tsx`                 | Memory UI page         |

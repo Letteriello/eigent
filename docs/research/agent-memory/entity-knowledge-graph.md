@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-This document covers entity extraction (NER), relationship extraction, and knowledge graph-based memory storage for AI agents. These technologies enable agents to understand not just *what* was discussed, but *who*, *what*, and *how* things relate to each other.
+This document covers entity extraction (NER), relationship extraction, and knowledge graph-based memory storage for AI agents. These technologies enable agents to understand not just _what_ was discussed, but _who_, _what_, and _how_ things relate to each other.
 
 ---
 
@@ -17,6 +17,7 @@ This document covers entity extraction (NER), relationship extraction, and knowl
 ### 2.1 What is NER?
 
 Named Entity Recognition (NER) is the task of identifying and classifying named entities in text into predefined categories such as:
+
 - **People** (PERSON): names of individuals
 - **Organizations** (ORG): companies, agencies, institutions
 - **Locations** (GPE): cities, countries, regions
@@ -26,23 +27,23 @@ Named Entity Recognition (NER) is the task of identifying and classifying named 
 
 ### 2.2 Entity Extraction Approaches
 
-| Approach | Description | Pros | Cons |
-|----------|-------------|------|------|
-| **Rule-based** | Pattern matching, regex | Fast, no training needed | Limited coverage |
-| **Statistical ML** | CRF, HMM models | Good accuracy | Requires training data |
-| **Deep Learning** | BiLSTM-CRF, Transformers | State-of-the-art accuracy | Computationally expensive |
-| **LLM-based** | Prompt engineering | No training, flexible | Token limits, cost |
+| Approach           | Description              | Pros                      | Cons                      |
+| ------------------ | ------------------------ | ------------------------- | ------------------------- |
+| **Rule-based**     | Pattern matching, regex  | Fast, no training needed  | Limited coverage          |
+| **Statistical ML** | CRF, HMM models          | Good accuracy             | Requires training data    |
+| **Deep Learning**  | BiLSTM-CRF, Transformers | State-of-the-art accuracy | Computationally expensive |
+| **LLM-based**      | Prompt engineering       | No training, flexible     | Token limits, cost        |
 
 ### 2.3 Recommended Tools for Entity Extraction
 
 #### Python Libraries
 
-| Library | Use Case | Integration |
-|---------|----------|-------------|
-| **spaCy** | Production NER | Fast, pre-trained models |
-| **HuggingFace Transformers** | Fine-tuned NER | Access to latest models |
-| **Stanford NER** | Academic/Research | Robust, well-tested |
-| **Prodigy** | Training custom NER | Active learning workflow |
+| Library                      | Use Case            | Integration              |
+| ---------------------------- | ------------------- | ------------------------ |
+| **spaCy**                    | Production NER      | Fast, pre-trained models |
+| **HuggingFace Transformers** | Fine-tuned NER      | Access to latest models  |
+| **Stanford NER**             | Academic/Research   | Robust, well-tested      |
+| **Prodigy**                  | Training custom NER | Active learning workflow |
 
 #### LLM-based Extraction (Recommended for Agents)
 
@@ -70,7 +71,7 @@ def extract_entities(llm, conversation: str) -> list[dict]:
 
 ### 2.4 Relationship Extraction
 
-Beyond identifying entities, understanding *how* they relate is crucial:
+Beyond identifying entities, understanding _how_ they relate is crucial:
 
 ```python
 # Relationship types for agent memory
@@ -108,22 +109,22 @@ Knowledge graphs store information as nodes (entities) and edges (relationships)
 
 ### 3.2 Benefits for Agent Memory
 
-| Benefit | Description |
-|---------|-------------|
-| **Relationship Understanding** | Knows how entities relate, not just what's said |
-| **Infer новые связи** | Can deduce implicit relationships |
-| **Efficient Querying** | Graph queries faster than full text search for relationships |
-| **Explainability** | Can trace why a memory is relevant |
+| Benefit                        | Description                                                  |
+| ------------------------------ | ------------------------------------------------------------ |
+| **Relationship Understanding** | Knows how entities relate, not just what's said              |
+| **Infer новые связи**          | Can deduce implicit relationships                            |
+| **Efficient Querying**         | Graph queries faster than full text search for relationships |
+| **Explainability**             | Can trace why a memory is relevant                           |
 
 ### 3.3 Graph Database Options
 
-| Database | Pros | Cons | Best For |
-|----------|------|------|----------|
-| **Neo4j** | Mature, Cypher query language, cloud options | Memory-heavy | Production deployments |
-| **NetworkX** (in-memory) | Python native, easy | Not persistent | Prototyping, small data |
-| **ArangoDB** | Multi-model (graph + document) | Less mature | Flexibility needs |
-| **SQLite + graph** | Simple, portable | Limited graph features | Simple agent memory |
-| **DuckDB** | Fast analytical queries | Not graph-native | Hybrid workloads |
+| Database                 | Pros                                         | Cons                   | Best For                |
+| ------------------------ | -------------------------------------------- | ---------------------- | ----------------------- |
+| **Neo4j**                | Mature, Cypher query language, cloud options | Memory-heavy           | Production deployments  |
+| **NetworkX** (in-memory) | Python native, easy                          | Not persistent         | Prototyping, small data |
+| **ArangoDB**             | Multi-model (graph + document)               | Less mature            | Flexibility needs       |
+| **SQLite + graph**       | Simple, portable                             | Limited graph features | Simple agent memory     |
+| **DuckDB**               | Fast analytical queries                      | Not graph-native       | Hybrid workloads        |
 
 ### 3.4 Recommended: Hybrid Approach
 
@@ -222,13 +223,13 @@ class Relationship(BaseModel):
 class KnowledgeGraph(BaseModel):
     entities: dict[str, Entity] = {}  # id -> Entity
     relationships: list[Relationship] = []
-    
+
     def add_entity(self, entity: Entity) -> None:
         self.entities[entity.id] = entity
-        
+
     def add_relationship(self, rel: Relationship) -> None:
         self.relationships.append(rel)
-        
+
     def get_entity(self, name: str) -> Optional[Entity]:
         for entity in self.entities.values():
             if entity.name.lower() == name.lower():
@@ -236,7 +237,7 @@ class KnowledgeGraph(BaseModel):
             if name.lower() in [a.lower() for a in entity.aliases]:
                 return entity
         return None
-    
+
     def get_related_entities(self, entity_id: str, relation_type: Optional[str] = None) -> list[Entity]:
         related_ids = []
         for rel in self.relationships:
@@ -266,7 +267,7 @@ class ExtractedEntity(BaseModel):
 class EntityExtractor:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
-        
+
     EXTRACTION_PROMPT = """Extract named entities from the following text.
 Return ONLY a valid JSON array with no additional text.
 
@@ -278,19 +279,19 @@ Text:
 {text}
 
 JSON:"""
-    
+
     def extract(self, text: str) -> list[ExtractedEntity]:
         """Extract entities from text using LLM."""
         response = self.llm.invoke(
             self.EXTRACTION_PROMPT.format(text=text)
         )
-        
+
         try:
             data = json.loads(response.content)
             return [ExtractedEntity(**item) for item in data]
         except json.JSONDecodeError:
             return []
-    
+
     def extract_from_conversation(self, messages: list[dict]) -> list[ExtractedEntity]:
         """Extract entities from conversation history."""
         all_text = "\n".join([
@@ -312,10 +313,10 @@ def get_entity_context(graph: KnowledgeGraph, entity_name: str) -> dict:
     entity = graph.get_entity(entity_name)
     if not entity:
         return {"entity": None, "relationships": [], "context": []}
-    
+
     # Get all relationships
     related = graph.get_related_entities(entity.id)
-    
+
     # Build context
     context = {
         "entity": entity,
@@ -325,34 +326,34 @@ def get_entity_context(graph: KnowledgeGraph, entity_name: str) -> dict:
         ],
         "relationship_summary": summarize_relationships(graph, entity.id)
     }
-    
+
     return context
 
 # Find path between two entities (for understanding connections)
 def find_connection(graph: KnowledgeGraph, entity1: str, entity2: str) -> list[str]:
     """Find shortest path between two entities using BFS."""
     from collections import deque
-    
+
     start = graph.get_entity(entity1)
     end = graph.get_entity(entity2)
-    
+
     if not start or not end:
         return []
-    
+
     queue = deque([(start.id, [start.id])])
     visited = {start.id}
-    
+
     while queue:
         current, path = queue.popleft()
-        
+
         if current == end.id:
             return path
-        
+
         for rel in graph.relationships:
             if rel.source_id == current and rel.target_id not in visited:
                 visited.add(rel.target_id)
                 queue.append((rel.target_id, path + [rel.target_id]))
-    
+
     return []
 ```
 
@@ -366,14 +367,14 @@ async def hybrid_retrieve(
     top_k: int = 5
 ) -> list[dict]:
     """Combine vector search with graph expansion."""
-    
+
     # 1. Vector search
     vector_results = await vector_store.similarity_search(query, k=top_k)
-    
+
     # 2. Extract entities from query
     extractor = EntityExtractor(llm)
     query_entities = extractor.extract(query)
-    
+
     # 3. Expand with graph results
     graph_contexts = []
     for entity in query_entities:
@@ -384,13 +385,13 @@ async def hybrid_retrieve(
                 {"type": "graph", "content": f"{entity.name}: {e.name}"}
                 for e in related
             ])
-    
+
     # 4. Combine and rank
     all_results = [
         {"type": "memory", "content": r.page_content, "score": r.score}
         for r in vector_results
     ] + graph_contexts
-    
+
     return all_results[:top_k]
 ```
 
@@ -400,13 +401,13 @@ async def hybrid_retrieve(
 
 ### 6.1 Changes Required
 
-| Component | Change | Priority |
-|-----------|--------|----------|
-| `memory_service.py` | Add graph storage layer | High |
-| `memory_model.py` | Add Entity, Relationship models | High |
-| New `entity_extraction.py` | Entity extraction service | High |
-| `memory_toolkit.py` | Add graph query tools | Medium |
-| Frontend `memoryStore.ts` | Display entity relationships | Low |
+| Component                  | Change                          | Priority |
+| -------------------------- | ------------------------------- | -------- |
+| `memory_service.py`        | Add graph storage layer         | High     |
+| `memory_model.py`          | Add Entity, Relationship models | High     |
+| New `entity_extraction.py` | Entity extraction service       | High     |
+| `memory_toolkit.py`        | Add graph query tools           | Medium   |
+| Frontend `memoryStore.ts`  | Display entity relationships    | Low      |
 
 ### 6.2 Data Model Updates
 
@@ -447,11 +448,11 @@ GET  /api/memory/graph/relationships # List relationships
 
 ### 7.1 Extraction Frequency
 
-| Strategy | When | Pros | Cons |
-|----------|------|------|------|
-| **On every message** | Real-time | Always current | More LLM calls |
-| **On conversation end** | Batch | Fewer calls | Delayed extraction |
-| **On memory creation** | Hybrid | Balances both | Medium complexity |
+| Strategy                | When      | Pros           | Cons               |
+| ----------------------- | --------- | -------------- | ------------------ |
+| **On every message**    | Real-time | Always current | More LLM calls     |
+| **On conversation end** | Batch     | Fewer calls    | Delayed extraction |
+| **On memory creation**  | Hybrid    | Balances both  | Medium complexity  |
 
 **Recommendation:** Extract entities on memory creation for new facts/context.
 
@@ -487,39 +488,44 @@ With entity extraction and knowledge graphs, Eigent can:
 
 ### 8.2 Example Improvements
 
-| Scenario | Without Graph | With Graph |
-|----------|---------------|------------|
-| User asks "What tools did Alice use?" | Must search all memories | Direct graph query: Alice -> uses -> Tool |
-| User asks "What's related to Project X?" | Text similarity | Graph traversal: Project X -> related entities |
-| User asks "Who worked on this?" | Keyword search | Graph: Project -> created_by -> Person |
+| Scenario                                 | Without Graph            | With Graph                                     |
+| ---------------------------------------- | ------------------------ | ---------------------------------------------- |
+| User asks "What tools did Alice use?"    | Must search all memories | Direct graph query: Alice -> uses -> Tool      |
+| User asks "What's related to Project X?" | Text similarity          | Graph traversal: Project X -> related entities |
+| User asks "Who worked on this?"          | Keyword search           | Graph: Project -> created_by -> Person         |
 
 ### 8.3 Context Continuity
 
 Knowledge graphs provide:
+
 - **Cross-conversation memory** - Remembers relationships across sessions
 - **Inference** - Can deduce new relationships
-- **Explainability** - Can show *why* a memory is relevant
+- **Explainability** - Can show _why_ a memory is relevant
 
 ---
 
 ## 9. Implementation Roadmap
 
 ### Phase 1: Core (Week 1-2)
+
 - [ ] Add Entity, Relationship models
 - [ ] Create entity extraction service
 - [ ] Integrate extraction with memory creation
 
 ### Phase 2: Storage (Week 3-4)
+
 - [ ] Add graph storage layer
 - [ ] Implement basic graph queries
 - [ ] Add relationship extraction
 
 ### Phase 3: Integration (Week 5-6)
+
 - [ ] Update retrieval to use hybrid (vector + graph)
 - [ ] Add graph query tools to agent toolkit
 - [ ] Update frontend to show entity relationships
 
 ### Phase 4: Optimization (Week 7+)
+
 - [ ] Add caching for entity extraction
 - [ ] Implement graph analytics
 - [ ] Add entity resolution (linking aliases)
@@ -529,16 +535,19 @@ Knowledge graphs provide:
 ## 10. References
 
 ### Documentation
+
 - [LangChain Entity Memory](https://python.langchain.com/docs/modules/memory/how_to/entity_summary_memory/)
 - [Neo4j Python Driver](https://neo4j.com/docs/python-manual/)
 - [spaCy NER](https://spacy.io/usage/linguistic-features#named-entities)
 
 ### Libraries
+
 - **NetworkX:** Python graph library (https://networkx.org/)
 - **py2neo:** Neo4j Python binding (https://py2neo.org/)
 - **珍珠 (Spacy):** Industrial-strength NLP
 
 ### Research Papers
+
 - "Neural Named Entity Recognition" - Survey of NER approaches
 - "Knowledge Graphs in NLP" - Survey of KG applications
 
@@ -557,5 +566,5 @@ Entity extraction and knowledge graphs significantly enhance agent memory by:
 
 ---
 
-*Document created as part of Eigent agent memory research.*
-*See also: `docs/research/agent-memory/initial-research.md`*
+_Document created as part of Eigent agent memory research._
+_See also: `docs/research/agent-memory/initial-research.md`_

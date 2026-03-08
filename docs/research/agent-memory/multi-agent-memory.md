@@ -18,11 +18,11 @@ This document explores patterns for implementing multi-agent and shared memory a
 
 There are three primary patterns for organizing memory in multi-agent systems:
 
-| Pattern | Description | Use Case |
-|---------|-------------|----------|
-| **Agent-Specific** | Private memory isolated per agent | Sensitive data, personal context |
-| **Team/Shared** | Common memory accessible by all agents | Project context, shared knowledge |
-| **Hierarchical** | Nested scopes (team > agent > session) | Complex organizations |
+| Pattern            | Description                            | Use Case                          |
+| ------------------ | -------------------------------------- | --------------------------------- |
+| **Agent-Specific** | Private memory isolated per agent      | Sensitive data, personal context  |
+| **Team/Shared**    | Common memory accessible by all agents | Project context, shared knowledge |
+| **Hierarchical**   | Nested scopes (team > agent > session) | Complex organizations             |
 
 ### 1.2 CrewAI Pattern (Hierarchical Scoped Memory)
 
@@ -51,6 +51,7 @@ writer = Agent(
 ```
 
 **Key Features:**
+
 - `memory.scope(path)` creates isolated views
 - Scoped memories automatically organized under path
 - Shared memories accessible when no agent-specific scope set
@@ -73,6 +74,7 @@ await agent_team.load_state(team_state)
 ```
 
 **Key Features:**
+
 - `save_state()` captures full team memory + history
 - `load_state()` restores context across sessions
 - GroupChatManager orchestrates shared communication
@@ -96,11 +98,11 @@ class AgentState(TypedDict):
 
 ### 2.1 Read/Write Permissions
 
-| Framework | Read Access | Write Access | Audit |
-|-----------|-------------|--------------|-------|
-| CrewAI | Path-based filtering | Agent identity | Via metadata |
-| AutoGen | State isolation | Agent identity | Via state dump |
-| Eigent (current) | agent_id filter | agent_id field | Not implemented |
+| Framework        | Read Access          | Write Access   | Audit           |
+| ---------------- | -------------------- | -------------- | --------------- |
+| CrewAI           | Path-based filtering | Agent identity | Via metadata    |
+| AutoGen          | State isolation      | Agent identity | Via state dump  |
+| Eigent (current) | agent_id filter      | agent_id field | Not implemented |
 
 ### 2.2 Recommended Access Control Matrix
 
@@ -141,11 +143,13 @@ Qdrant Collections:
 ```
 
 **Pros:**
+
 - Clean isolation
 - Easy permission enforcement
 - Simple query routing
 
 **Cons:**
+
 - Cross-agent search requires multiple queries
 - More collections to manage
 - Join operations complex
@@ -165,11 +169,13 @@ Qdrant Collection: agent_memory
 ```
 
 **Pros:**
+
 - Single query for cross-agent search
 - Flexible filtering
 - Easier to implement RRF across scopes
 
 **Cons:**
+
 - Requires careful filter validation
 - Permission bugs could expose data
 
@@ -185,10 +191,12 @@ Qdrant Collection: agent_memory
 ### 4.1 CrewAI Memory Architecture
 
 **Storage Backend:**
+
 - Default: In-memory with SQLite persistence
 - Supports vector stores: Chroma, Pinecone, Qdrant
 
 **Memory Extraction:**
+
 ```python
 # After each task, crew extracts facts:
 crew.memory.remember(
@@ -198,6 +206,7 @@ crew.memory.remember(
 ```
 
 **Context Injection:**
+
 ```python
 # Before each task, recall relevant context:
 context = await crew.memory.recall(
@@ -210,11 +219,13 @@ context = await crew.memory.recall(
 ### 4.2 AutoGen Team Memory
 
 **State Components:**
+
 - Agent internal state (memory)
 - Conversation history
 - Shared context (group chat)
 
 **Persistence:**
+
 ```python
 # Save/load includes:
 {
@@ -227,6 +238,7 @@ context = await crew.memory.recall(
 ### 4.3 LangGraph Checkpointing
 
 **State Management:**
+
 - Checkpoints at each graph node
 - Typed state with memory fields
 - Conditional branching based on state
@@ -239,15 +251,16 @@ context = await crew.memory.recall(
 
 Based on code analysis:
 
-| Component | Status | Location |
-|-----------|--------|----------|
-| Memory Model | ✅ Implemented | `backend/app/model/memory.py` |
-| Memory Service | ✅ Implemented | `backend/app/service/memory_service.py` |
-| Memory Toolkit | ✅ Implemented | `backend/app/agent/toolkit/memory_toolkit.py` |
+| Component         | Status         | Location                                      |
+| ----------------- | -------------- | --------------------------------------------- |
+| Memory Model      | ✅ Implemented | `backend/app/model/memory.py`                 |
+| Memory Service    | ✅ Implemented | `backend/app/service/memory_service.py`       |
+| Memory Toolkit    | ✅ Implemented | `backend/app/agent/toolkit/memory_toolkit.py` |
 | Memory Controller | ✅ Implemented | `backend/app/controller/memory_controller.py` |
-| Frontend Store | ✅ Implemented | `src/store/memoryStore.ts` |
+| Frontend Store    | ✅ Implemented | `src/store/memoryStore.ts`                    |
 
 **Current Features:**
+
 - `agent_id` field for ownership (optional)
 - `session_id` for session scoping
 - `memory_type`: fact, preference, context, learned
@@ -266,6 +279,7 @@ Based on code analysis:
 ### 5.3 Current Agent Model
 
 From `backend/app/agent/agent_model.py`:
+
 - Agents are created per task/chat session
 - Each agent has unique `agent_id` (UUID)
 - Agents tied to `project_id` via task lock
@@ -280,39 +294,44 @@ From `backend/app/agent/agent_model.py`:
 **Changes Required:**
 
 1. **Memory Model Updates:**
+
 ```python
 class MemoryCreate(BaseModel):
     # Add required project_id
     project_id: str = Field(..., description="Project this memory belongs to")
-    
+
     # Keep existing fields
     agent_id: str | None = Field(default=None, description="Agent owner (null = project shared)")
     access_level: AccessLevel = Field(default=AccessLevel.team, description="private/team/public")
 ```
 
 2. **Service Updates:**
+
 - Add project_id to all queries by default
 - Filter: `project_id = current_project` unless admin
 
 3. **API Updates:**
+
 - Require project_id in create/search requests
 - Validate user has access to project
 
 ### 6.2 Phase 2: Implement Scope Hierarchy
 
 **New Fields:**
+
 ```python
 class MemoryCreate(BaseModel):
     scope_path: str | None = Field(
         default=None,
         description="Hierarchical path: /project/x/agent/y/shared/z"
     )
-    
+
     # Simplified - derive from scope_path
     access_level: AccessLevel = Field(default=AccessLevel.team)
 ```
 
 **Scope Resolution:**
+
 ```
 Query scope: /project/backend-dev/agent/researcher
 Returns:
@@ -324,6 +343,7 @@ Returns:
 ### 6.3 Phase 3: Access Control & Audit
 
 **Implementation:**
+
 ```python
 class MemoryAccessPolicy:
     @staticmethod
@@ -338,6 +358,7 @@ class MemoryAccessPolicy:
 ```
 
 **Audit Log Model:**
+
 ```python
 class MemoryAuditLog(BaseModel):
     action: AuditAction  # CREATE, READ, UPDATE, DELETE
@@ -352,6 +373,7 @@ class MemoryAuditLog(BaseModel):
 ### 6.4 Phase 4: Frontend UI Updates
 
 **New UI Components:**
+
 1. **Memory Scope Selector**: Toggle between private/team/project
 2. **Shared Memory View**: View all team memories
 3. **Memory Audit Log Viewer**: See who accessed what
@@ -363,14 +385,14 @@ class MemoryAuditLog(BaseModel):
 
 ### Priority Order:
 
-| Phase | Feature | Effort | Impact |
-|-------|---------|--------|--------|
-| 1 | Add project_id to memories | Low | High |
-| 2 | Implement scope hierarchy | Medium | High |
-| 3 | Add access control | Medium | High |
-| 4 | Add audit logging | Medium | Medium |
-| 5 | Frontend memory management | Medium | Medium |
-| 6 | Cross-agent recall tools | High | High |
+| Phase | Feature                    | Effort | Impact |
+| ----- | -------------------------- | ------ | ------ |
+| 1     | Add project_id to memories | Low    | High   |
+| 2     | Implement scope hierarchy  | Medium | High   |
+| 3     | Add access control         | Medium | High   |
+| 4     | Add audit logging          | Medium | Medium |
+| 5     | Frontend memory management | Medium | Medium |
+| 6     | Cross-agent recall tools   | High   | High   |
 
 ### Migration Strategy:
 
@@ -403,5 +425,5 @@ The recommended approach follows CrewAI's scoped memory pattern, which provides 
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2026-03-08*
+_Document Version: 1.0_
+_Last Updated: 2026-03-08_

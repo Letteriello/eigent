@@ -29,12 +29,31 @@ class MemoryType(str, Enum):
     - preference: User preferences and settings
     - context: Current working context and project info
     - learned: Knowledge learned from interactions
+    - session_summary: Summary of a single session's memories
+    - consolidated: Consolidated summary from multiple sessions
+    - key_facts: Extracted key facts and entities
     """
 
     fact = "fact"
     preference = "preference"
     context = "context"
     learned = "learned"
+    session_summary = "session_summary"
+    consolidated = "consolidated"
+    key_facts = "key_facts"
+
+
+class SummaryLevel(str, Enum):
+    """Level of summarization for memory summaries.
+
+    - session: Summary of a single session
+    - consolidated: Consolidated summary from multiple sessions
+    - key_facts: Extracted key facts and entities
+    """
+
+    session = "session"
+    consolidated = "consolidated"
+    key_facts = "key_facts"
 
 
 DEFAULT_SUMMARY_PROMPT = (

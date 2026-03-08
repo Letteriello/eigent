@@ -11,11 +11,13 @@
 ### 1.1 Context Window Limits
 
 Modern LLMs have finite context windows:
+
 - **GPT-4o:** 128K tokens
 - **Claude 3.5:** 200K tokens
 - **Gemini 2.0:** 1M tokens (but with latency/cost implications)
 
 As agents accumulate memories over time, they exceed these limits. Without summarization:
+
 - Retrieval becomes inefficient (more noise than signal)
 - Context injection exceeds available window
 - Agent performance degrades significantly
@@ -23,6 +25,7 @@ As agents accumulate memories over time, they exceed these limits. Without summa
 ### 1.2 Storage Efficiency
 
 Raw conversation data is inefficient:
+
 - **Verbose:** Natural language contains redundancy
 - **Redundant:** Similar patterns repeat across sessions
 - **Expensive:** Vector storage costs scale with data volume
@@ -32,6 +35,7 @@ Summarization reduces storage requirements by **60-80%** while preserving essent
 ### 1.3 Information Density
 
 A well-structured summary concentrates actionable information:
+
 - Key decisions and outcomes
 - Entity facts and relationships
 - User preferences and patterns
@@ -47,11 +51,11 @@ A well-structured summary concentrates actionable information:
 
 **Implementation options:**
 
-| Approach | Description | Pros | Cons |
-|----------|-------------|------|------|
-| **Full Summarization** | Summarize entire memory block | Complete overview | Expensive, may lose details |
-| **Incremental** | Summarize new content, merge with existing | Efficient, maintains context | Complex merge logic |
-| **Extractive + Abstractive** | Extract key points, then synthesize | Balanced | Two-step process |
+| Approach                     | Description                                | Pros                         | Cons                        |
+| ---------------------------- | ------------------------------------------ | ---------------------------- | --------------------------- |
+| **Full Summarization**       | Summarize entire memory block              | Complete overview            | Expensive, may lose details |
+| **Incremental**              | Summarize new content, merge with existing | Efficient, maintains context | Complex merge logic         |
+| **Extractive + Abstractive** | Extract key points, then synthesize        | Balanced                     | Two-step process            |
 
 **Prompts for memory summarization:**
 
@@ -84,11 +88,13 @@ Summary:
 **How it works:** Identify and extract key information without generating new text.
 
 **Techniques:**
+
 - **Key Phrase Extraction:** Noun phrases, named entities
 - **Sentence Scoring:** TF-IDF, LLM-based importance
 - **Template Filling:** Structured slots for facts
 
 **Implementation in Eigent:**
+
 ```python
 class ExtractionSummarizer:
     def __init__(self, llm):
@@ -127,6 +133,7 @@ Level 4: Key facts & preferences (permanent)
 ```
 
 **Benefits:**
+
 - Preserves granularity where needed
 - Progressive condensation
 - Rollback capability (original data retained until confirmed)
@@ -137,14 +144,15 @@ Level 4: Key facts & preferences (permanent)
 
 ### 3.1 Age-Based Triggers
 
-| Age Threshold | Action | Rationale |
-|--------------|--------|-----------|
-| 24 hours | Flag for review | Context becoming stale |
-| 7 days | Generate session summary | Full conversation context no longer needed |
-| 30 days | Consolidate summaries | Merge related sessions |
-| 90 days | Archive or delete | Beyond useful retention |
+| Age Threshold | Action                   | Rationale                                  |
+| ------------- | ------------------------ | ------------------------------------------ |
+| 24 hours      | Flag for review          | Context becoming stale                     |
+| 7 days        | Generate session summary | Full conversation context no longer needed |
+| 30 days       | Consolidate summaries    | Merge related sessions                     |
+| 90 days       | Archive or delete        | Beyond useful retention                    |
 
 **Implementation:**
+
 ```python
 # memory_service.py
 async def get_memories_for_summarization() -> list[Memory]:
@@ -156,11 +164,13 @@ async def get_memories_for_summarization() -> list[Memory]:
 ### 3.2 Size Thresholds
 
 **Token-based triggers:**
+
 - Memory block exceeds 4000 tokens → partial summarization
 - Total session memories exceed 8000 tokens → full session summary
 - Agent context injection exceeds 50% of window → prioritize retrieval
 
 **Implementation:**
+
 ```python
 def should_summarize(memories: list[Memory]) -> bool:
     total_tokens = sum(self._estimate_tokens(m.content) for m in memories)
@@ -171,14 +181,15 @@ def should_summarize(memories: list[Memory]) -> bool:
 
 **Factors for prioritization:**
 
-| Factor | Weight | Description |
-|--------|--------|-------------|
-| Recency | 0.3 | How recently accessed/modified |
-| Access Frequency | 0.2 | How often retrieved |
-| Content Type | 0.2 | Preferences > Facts > Context |
-| Explicit Importance | 0.3 | User/agent marked importance |
+| Factor              | Weight | Description                    |
+| ------------------- | ------ | ------------------------------ |
+| Recency             | 0.3    | How recently accessed/modified |
+| Access Frequency    | 0.2    | How often retrieved            |
+| Content Type        | 0.2    | Preferences > Facts > Context  |
+| Explicit Importance | 0.3    | User/agent marked importance   |
 
 **Formula:**
+
 ```
 summarization_priority = (recency_score * 0.3) +
                          (access_freq * 0.2) +
@@ -193,12 +204,14 @@ summarization_priority = (recency_score * 0.3) +
 ### 4.1 Entity Retention
 
 **Must preserve:**
+
 - Names (people, organizations, projects)
 - Locations and dates
 - Technical entities (APIs, tools, configurations)
 - Relationships between entities
 
 **Extraction strategy:**
+
 ```python
 ENTITY_TYPES = {
     "person": ["user", "agent", "developer"],
@@ -216,12 +229,14 @@ async def extract_entities(memories: list[Memory]) -> dict[str, list[str]]:
 ### 4.2 Preference Preservation
 
 **Categories to track:**
+
 - Explicit preferences (user stated directly)
 - Implicit preferences (inferred from behavior)
 - Workstyle preferences (communication, timing)
 - Technical preferences (tools, formats)
 
 **Storage format:**
+
 ```python
 class UserPreference(BaseModel):
     category: str  # "communication", "technical", "workstyle"
@@ -236,12 +251,14 @@ class UserPreference(BaseModel):
 ### 4.3 Context Continuity
 
 **Preserving narrative flow:**
+
 1. **Timeline reconstruction:** Maintain chronological ordering
 2. **Causal links:** What led to what
 3. **Outcome tracking:** What succeeded/failed
 4. **Thread continuity:** Related topics across sessions
 
 **Implementation:**
+
 ```python
 class ContextContinuity:
     def preserve_continuity(self, old_summary: Memory, new_content: list[Memory]) -> str:
@@ -270,12 +287,14 @@ class ContextContinuity:
 ### 5.1 Current Architecture Review
 
 **Existing components:**
+
 - `backend/app/model/memory.py` - Pydantic models
 - `backend/app/service/memory_service.py` - CRUD + search
 - `backend/app/agent/toolkit/memory_toolkit.py` - Agent tools
 - `src/store/memoryStore.ts` - Zustand store
 
 **Current memory types:**
+
 - `fact` - Factual information
 - `context` - Conversational context
 - `learned` - Semantic knowledge
@@ -284,6 +303,7 @@ class ContextContinuity:
 ### 5.2 Implementation Plan
 
 **Phase 1: Summarization Service**
+
 ```python
 # backend/app/service/summarization_service.py
 
@@ -316,6 +336,7 @@ class SummarizationService:
 ```
 
 **Phase 2: Trigger System**
+
 ```python
 # backend/app/service/summarization_scheduler.py
 
@@ -336,6 +357,7 @@ class SummarizationScheduler:
 ```
 
 **Phase 3: API Endpoints**
+
 ```python
 # backend/app/controller/memory_controller.py additions
 
@@ -359,14 +381,15 @@ async def get_memory_summary(id: str):
 
 **UI Components needed:**
 
-| Component | Purpose | Priority |
-|-----------|---------|----------|
-| MemoryTimeline | Show memory history with summarization markers | High |
-| SummaryViewer | Display generated summaries with source expansion | High |
-| SummarizationSettings | Configure triggers and retention | Medium |
-| MemoryQualityIndicator | Show summary quality vs raw data | Low |
+| Component              | Purpose                                           | Priority |
+| ---------------------- | ------------------------------------------------- | -------- |
+| MemoryTimeline         | Show memory history with summarization markers    | High     |
+| SummaryViewer          | Display generated summaries with source expansion | High     |
+| SummarizationSettings  | Configure triggers and retention                  | Medium   |
+| MemoryQualityIndicator | Show summary quality vs raw data                  | Low      |
 
 **Store updates:**
+
 ```typescript
 // src/store/memoryStore.ts additions
 interface MemorySummary {
@@ -421,13 +444,13 @@ class SummarizationSettings(BaseModel):
 
 ## 6. Summary
 
-| Aspect | Recommendation |
-|--------|----------------|
-| **Approach** | Hierarchical: session summaries → consolidated → key facts |
-| **Trigger** | Age-based (7 days) + size-based (4000 tokens) |
+| Aspect           | Recommendation                                               |
+| ---------------- | ------------------------------------------------------------ |
+| **Approach**     | Hierarchical: session summaries → consolidated → key facts   |
+| **Trigger**      | Age-based (7 days) + size-based (4000 tokens)                |
 | **Preservation** | Entity extraction + preference tracking + context continuity |
-| **Integration** | New summarization service + scheduler + API endpoints |
-| **Frontend** | Summary viewer + timeline integration |
+| **Integration**  | New summarization service + scheduler + API endpoints        |
+| **Frontend**     | Summary viewer + timeline integration                        |
 
 ---
 
@@ -440,5 +463,5 @@ class SummarizationSettings(BaseModel):
 
 ---
 
-*Document version: 1.0*
-*Next: Implementation planning based on this research*
+_Document version: 1.0_
+_Next: Implementation planning based on this research_

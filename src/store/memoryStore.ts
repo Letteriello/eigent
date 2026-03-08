@@ -35,6 +35,17 @@ export interface MemorySearchResult {
   query: string;
 }
 
+export type SummaryQuality = 'excellent' | 'good' | 'partial';
+
+export interface MemorySummary {
+  id: string;
+  memoryId: string;
+  content: string;
+  sourceCount: number;
+  generatedAt: string;
+  quality: SummaryQuality;
+}
+
 export interface MemoryStats {
   total_memories: number;
   by_type: Record<string, number>;
@@ -48,6 +59,10 @@ interface MemoryState {
   isLoading: boolean;
   error: string | null;
   lastSearchQuery: string;
+
+  // Summary state
+  summaries: Record<string, MemorySummary>;
+  summarizationStatus: 'idle' | 'summarizing' | 'error';
 
   // Actions
   fetchMemories: () => Promise<void>;
@@ -73,6 +88,10 @@ interface MemoryState {
   ) => Promise<MemorySearchResult | null>;
   fetchStats: () => Promise<void>;
   clearError: () => void;
+
+  // Summary actions
+  summarizeMemory: (memoryId: string) => Promise<MemorySummary | null>;
+  getSummary: (memoryId: string) => MemorySummary | null;
 }
 
 const API_BASE = '/api/memory';
@@ -86,6 +105,10 @@ export const useMemoryStore = create<MemoryState>()(
       isLoading: false,
       error: null,
       lastSearchQuery: '',
+
+      // Summary state
+      summaries: {},
+      summarizationStatus: 'idle',
 
       fetchMemories: async () => {
         set({ isLoading: true, error: null });
@@ -284,12 +307,86 @@ export const useMemoryStore = create<MemoryState>()(
       clearError: () => {
         set({ error: null });
       },
+
+      summarizeMemory: async (memoryId: string) => {
+        set({ summarizationStatus: 'summarizing', error: null });
+        try {
+          const response = await fetch(`${API_BASE}/${memoryId}/summarize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to summarize memory: ${response.statusText}`
+            );
+          }
+
+          const summary = (await response.json()) as MemorySummary;
+
+          // Update local state
+          set((state) => ({
+            summaries: {
+              ...state.summaries,
+              [memoryId]: summary,
+            },
+            summarizationStatus: 'idle',
+          }));
+
+          return summary;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : 'Unknown error';
+          set({ error: message, summarizationStatus: 'error' });
+          console.error('[MemoryStore] Failed to summarize memory:', error);
+          return null;
+        }
+      },
+
+      getSummary: (memoryId: string): MemorySummary | null => {
+        const state = get();
+        return state.summaries[memoryId] ?? null;
+      },
     }),
     {
       name: 'memory-storage',
       partialize: (state) => ({
         memories: state.memories,
+        summaries: state.summaries,
       }),
     }
   )
 );
+
+// ========= OPTIMIZED SELECTORS (prevent unnecessary re-renders) =========
+
+// Selector for memories list with shallow equality
+export const useMemories = () =>
+  useMemoryStore((state) => state.memories, shallow);
+
+// Selector for search results with shallow equality
+export const useSearchResults = () =>
+  useMemoryStore((state) => state.searchResults, shallow);
+
+// Selector for loading and error state
+export const useMemoryStatus = () =>
+  useMemoryStore(
+    (state) => ({
+      isLoading: state.isLoading,
+      error: state.error,
+      lastSearchQuery: state.lastSearchQuery,
+    }),
+    shallow
+  );
+
+// Selector for memory stats
+export const useMemoryStats = () =>
+  useMemoryStore((state) => state.stats, shallow);
+
+// Selector for summarization status
+export const useSummarizationStatus = () =>
+  useMemoryStore((state) => state.summarizationStatus, shallow);
+
+// Selector for a specific memory summary
+export const useMemorySummary = (memoryId: string) =>
+  useMemoryStore((state) => state.summaries[memoryId] ?? null, shallow);

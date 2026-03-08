@@ -12,6 +12,7 @@
 // limitations under the License.
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
+import MemorySummary from '@/components/MemorySummary';
 import SearchInput from '@/components/SearchInput';
 import { Button } from '@/components/ui/button';
 import {
@@ -242,6 +243,11 @@ export default function MemoryPage() {
                     {new Date(memory.created_at).toLocaleString()}
                   </p>
                 </CardContent>
+
+                {/* Summary Section */}
+                <div className="px-6 pb-4">
+                  <MemorySummary memory={memory} />
+                </div>
               </Card>
             ))}
           </div>

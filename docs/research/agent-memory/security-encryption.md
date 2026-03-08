@@ -12,17 +12,18 @@ This document analyzes the current memory storage implementation in Eigent and p
 
 The current memory system consists of:
 
-| Component | Technology | Location |
-|-----------|------------|----------|
-| Vector Storage | Qdrant (local) | `~/.eigent/memory_storage` |
-| In-Memory Cache | Python dict | Runtime only |
-| Embeddings | OpenAI text-embedding-ada-002 | Cloud API |
-| API Layer | FastAPI | `backend/app/controller/memory_controller.py` |
-| Service Layer | `MemoryService` | `backend/app/service/memory_service.py` |
+| Component       | Technology                    | Location                                      |
+| --------------- | ----------------------------- | --------------------------------------------- |
+| Vector Storage  | Qdrant (local)                | `~/.eigent/memory_storage`                    |
+| In-Memory Cache | Python dict                   | Runtime only                                  |
+| Embeddings      | OpenAI text-embedding-ada-002 | Cloud API                                     |
+| API Layer       | FastAPI                       | `backend/app/controller/memory_controller.py` |
+| Service Layer   | `MemoryService`               | `backend/app/service/memory_service.py`       |
 
 ### 1.2 Current Security Posture
 
 **What's Stored:**
+
 - Memory content (text)
 - Memory type (fact, preference, context, learned)
 - Metadata (user-defined key-value pairs)
@@ -31,6 +32,7 @@ The current memory system consists of:
 - Timestamps (created_at, updated_at)
 
 **Current Security Measures:**
+
 - None. Data is stored in plaintext in local Qdrant instance
 - No encryption at rest
 - No authentication on memory endpoints
@@ -39,15 +41,15 @@ The current memory system consists of:
 
 ### 1.3 Identified Security Gaps
 
-| Gap | Severity | Risk |
-|-----|----------|------|
-| No encryption at rest | **Critical** | Data exposed if disk stolen |
-| No API authentication | **Critical** | Unauthorized memory access |
-| No user isolation | **Critical** | Users can access others' memories |
-| No PII detection | **High** | Sensitive data stored without controls |
-| No TLS | **High** | Data exposed in transit |
-| No audit logging | **Medium** | No accountability for data access |
-| No data retention policy | **Medium** | Indefinite storage of sensitive data |
+| Gap                      | Severity     | Risk                                   |
+| ------------------------ | ------------ | -------------------------------------- |
+| No encryption at rest    | **Critical** | Data exposed if disk stolen            |
+| No API authentication    | **Critical** | Unauthorized memory access             |
+| No user isolation        | **Critical** | Users can access others' memories      |
+| No PII detection         | **High**     | Sensitive data stored without controls |
+| No TLS                   | **High**     | Data exposed in transit                |
+| No audit logging         | **Medium**   | No accountability for data access      |
+| No data retention policy | **Medium**   | Indefinite storage of sensitive data   |
 
 ---
 
@@ -56,6 +58,7 @@ The current memory system consists of:
 ### 2.1 Qdrant Encryption Capabilities
 
 **Built-in Features:**
+
 - **API Key Authentication**: Static API key for client authentication
 - **TLS/SSL**: Encryption for data in transit
 - **Storage**: Data persisted to local filesystem
@@ -73,11 +76,13 @@ The current memory system consists of:
 ```
 
 **Pros:**
+
 - Transparent to application
 - Protects against physical theft
 - No performance overhead for queries
 
 **Cons:**
+
 - Requires OS-level configuration
 - Doesn't protect against runtime attacks
 
@@ -109,11 +114,13 @@ class MemoryEncryption:
 ```
 
 **Pros:**
+
 - Fine-grained control over what gets encrypted
 - Protects against runtime memory dumps
 - User-specific keys enable per-user isolation
 
 **Cons:**
+
 - Search functionality becomes limited (must decrypt all results)
 - Performance overhead for encryption/decryption
 - Vector search requires decrypted content
@@ -155,15 +162,15 @@ tls:
 
 ### 3.1 What Data Should Be Encrypted
 
-| Data Type | Sensitivity | Example | Encryption |
-|-----------|-------------|---------|------------|
-| Credentials | **Critical** | API keys, passwords | Always |
-| PII | **High** | Names, emails, addresses | Always |
-| Financial | **High** | Payment info, account numbers | Always |
-| Health | **High** | Medical info, conditions | Always (HIPAA) |
-| Conversation Content | **Medium** | Chat messages | Recommended |
-| Preferences | **Medium** | User settings | Optional |
-| Facts/Knowledge | **Low** | Learned facts | Not required |
+| Data Type            | Sensitivity  | Example                       | Encryption     |
+| -------------------- | ------------ | ----------------------------- | -------------- |
+| Credentials          | **Critical** | API keys, passwords           | Always         |
+| PII                  | **High**     | Names, emails, addresses      | Always         |
+| Financial            | **High**     | Payment info, account numbers | Always         |
+| Health               | **High**     | Medical info, conditions      | Always (HIPAA) |
+| Conversation Content | **Medium**   | Chat messages                 | Recommended    |
+| Preferences          | **Medium**   | User settings                 | Optional       |
+| Facts/Knowledge      | **Low**      | Learned facts                 | Not required   |
 
 ### 3.2 PII Detection in Memories
 
@@ -303,12 +310,12 @@ Master Key (KEK)
 
 **Implementation Options:**
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| User-provided password | No server trust | User burden |
-| Server-side key storage | Easy to implement | Single point of failure |
-| Hardware Security Module | Maximum security | Cost, complexity |
-| Key Management Service | Managed, scalable | Cloud dependency |
+| Approach                 | Pros              | Cons                    |
+| ------------------------ | ----------------- | ----------------------- |
+| User-provided password   | No server trust   | User burden             |
+| Server-side key storage  | Easy to implement | Single point of failure |
+| Hardware Security Module | Maximum security  | Cost, complexity        |
+| Key Management Service   | Managed, scalable | Cloud dependency        |
 
 **Recommended: Server-side with env var for MVP**
 
@@ -436,14 +443,14 @@ class EncryptedVectorStore:
 
 ### 5.4 Trade-offs Matrix
 
-| Approach | Search | Performance | Security | Implementation |
-|----------|--------|-------------|----------|----------------|
-| Full-disk | Full | 100% | Medium | Easy |
-| Field encryption | Full* | 90% | High | Medium |
-| App-level encryption | Full* | 85% | Very High | Hard |
-| Encrypted vectors | Limited | 70% | Very High | Hard |
+| Approach             | Search  | Performance | Security  | Implementation |
+| -------------------- | ------- | ----------- | --------- | -------------- |
+| Full-disk            | Full    | 100%        | Medium    | Easy           |
+| Field encryption     | Full\*  | 90%         | High      | Medium         |
+| App-level encryption | Full\*  | 85%         | Very High | Hard           |
+| Encrypted vectors    | Limited | 70%         | Very High | Hard           |
 
-*Requires decryption of all results post-query
+\*Requires decryption of all results post-query
 
 ---
 
@@ -507,6 +514,6 @@ class EncryptedVectorStore:
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2026-03-08*
-*Author: Security Research*
+_Document Version: 1.0_
+_Last Updated: 2026-03-08_
+_Author: Security Research_

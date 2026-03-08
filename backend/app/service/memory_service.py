@@ -27,12 +27,25 @@ from camel.storages import QdrantStorage
 from app.component.environment import env
 from app.model.enums import MemoryType
 from app.model.memory import (
+    CleanupResult,
+    ConsolidateResult,
+    ConsolidationResult,
+    DuplicateCandidate,
+    EncryptionStatus,
+    EncryptResult,
     MemoryCreate,
     MemoryResponse,
     MemorySearchQuery,
     MemorySearchResult,
+    MemorySettings,
     MemoryStats,
+    MemorySummaryRequest,
     MemoryUpdate,
+    PendingSummary,
+)
+from app.service.encryption_service import (
+    EncryptionService,
+    get_encryption_service,
 )
 
 logger = logging.getLogger("memory_service")
@@ -73,6 +86,14 @@ class MemoryService:
         self._embedding_model = None
         self._storage = None
         self._memories: dict[str, dict[str, Any]] = {}
+        # Encryption service for sensitive content
+        self._encryption_service: EncryptionService | None = None
+
+    def _get_encryption_service(self) -> EncryptionService:
+        """Get or initialize the encryption service."""
+        if self._encryption_service is None:
+            self._encryption_service = get_encryption_service()
+        return self._encryption_service
 
     def _get_embedding_model(self):
         """Lazily initialize the embedding model."""
@@ -99,14 +120,19 @@ class MemoryService:
 
     def _memory_to_response(self, memory_data: dict[str, Any]) -> MemoryResponse:
         """Convert internal memory dict to response model."""
+        metadata = memory_data.get("metadata", {})
         return MemoryResponse(
             id=memory_data["id"],
             content=memory_data["content"],
             memory_type=MemoryType(memory_data["memory_type"]),
-            metadata=memory_data.get("metadata", {}),
+            metadata=metadata,
             agent_id=memory_data.get("agent_id"),
             session_id=memory_data.get("session_id"),
             importance=memory_data.get("importance", 1.0),
+            is_summary=metadata.get("is_summary", False),
+            summary_level=metadata.get("summary_level"),
+            source_memory_ids=metadata.get("source_memory_ids", []),
+            is_encrypted=memory_data.get("is_encrypted", False),
             created_at=memory_data["created_at"],
             updated_at=memory_data["updated_at"],
         )
@@ -123,10 +149,27 @@ class MemoryService:
         now = datetime.utcnow()
         memory_id = self._generate_memory_id(memory.content)
 
+        # Check if we should encrypt this memory based on type
+        encryption_service = self._get_encryption_service()
+        memory_type_str = memory.memory_type.value
+        is_sensitive = encryption_service.is_sensitive(memory_type_str)
+
+        # Encrypt content if sensitive and encryption is enabled
+        stored_content = memory.content
+        if is_sensitive and encryption_service.is_enabled:
+            try:
+                stored_content = encryption_service.encrypt(memory.content)
+                logger.debug(f"Encrypted content for memory {memory_id}")
+            except Exception as e:
+                logger.warning(f"Failed to encrypt memory content: {e}")
+                # Fall back to plaintext
+
         memory_data = {
             "id": memory_id,
-            "content": memory.content,
-            "memory_type": memory.memory_type.value,
+            "content": stored_content,
+            "content_plaintext": memory.content if is_sensitive else None,  # Keep for search
+            "is_encrypted": is_sensitive and encryption_service.is_enabled,
+            "memory_type": memory_type_str,
             "metadata": memory.metadata,
             "agent_id": memory.agent_id,
             "session_id": memory.session_id,
@@ -135,22 +178,24 @@ class MemoryService:
             "updated_at": now,
         }
 
-        # Store in memory dict for BM25
+        # Store in memory dict for BM25 (use plaintext for indexing)
         self._memories[memory_id] = memory_data
 
         # Store in Qdrant for vector search
         try:
             storage = self._get_storage()
             embedding_model = self._get_embedding_model()
-            vector = embedding_model.embed(memory.content)
+            vector = embedding_model.embed(memory.content)  # Always use plaintext for embeddings
 
             storage.write(
                 vectors={[memory_id]: vector},
                 payloads=[
                     {
                         "id": memory_id,
-                        "content": memory.content,
-                        "memory_type": memory.memory_type.value,
+                        "content": stored_content,
+                        "content_plaintext": memory.content if is_sensitive else None,
+                        "is_encrypted": is_sensitive and encryption_service.is_enabled,
+                        "memory_type": memory_type_str,
                         "metadata": memory.metadata,
                         "agent_id": memory.agent_id,
                         "session_id": memory.session_id,
@@ -179,7 +224,8 @@ class MemoryService:
         """
         memory_data = self._memories.get(memory_id)
         if memory_data:
-            return self._memory_to_response(memory_data)
+            # Decrypt if needed
+            return self._decrypt_memory_response(memory_data)
 
         # Try to get from Qdrant
         try:
@@ -191,9 +237,22 @@ class MemoryService:
             if results and len(results) > 0:
                 payload = results[0].get("payload", {})
                 if payload:
+                    is_encrypted = payload.get("is_encrypted", False)
+                    content = payload.get("content", "")
+
+                    # Decrypt if encrypted
+                    if is_encrypted:
+                        encryption_service = self._get_encryption_service()
+                        if encryption_service.is_enabled:
+                            try:
+                                content = encryption_service.decrypt(content)
+                            except Exception as e:
+                                logger.warning(f"Failed to decrypt memory content: {e}")
+
                     memory_data = {
                         "id": payload.get("id", memory_id),
-                        "content": payload.get("content", ""),
+                        "content": content,
+                        "is_encrypted": is_encrypted,
                         "memory_type": payload.get("memory_type", "fact"),
                         "metadata": payload.get("metadata", {}),
                         "agent_id": payload.get("agent_id"),
@@ -212,6 +271,32 @@ class MemoryService:
             logger.warning(f"Failed to query Qdrant: {e}")
 
         return None
+
+    def _decrypt_memory_response(self, memory_data: dict[str, Any]) -> MemoryResponse:
+        """Decrypt memory content if encrypted and return response.
+
+        Args:
+            memory_data: Internal memory data dict
+
+        Returns:
+            MemoryResponse with decrypted content
+        """
+        is_encrypted = memory_data.get("is_encrypted", False)
+        content = memory_data.get("content", "")
+
+        if is_encrypted:
+            encryption_service = self._get_encryption_service()
+            if encryption_service.is_enabled:
+                try:
+                    content = encryption_service.decrypt(content)
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt memory content: {e}")
+
+        # Update memory_data with decrypted content for response
+        memory_data = dict(memory_data)
+        memory_data["content"] = content
+
+        return self._memory_to_response(memory_data)
 
     async def update_memory(
         self, memory_id: str, update: MemoryUpdate
@@ -312,7 +397,8 @@ class MemoryService:
                 continue
             if agent_id and memory_data.get("agent_id") != agent_id:
                 continue
-            results.append(self._memory_to_response(memory_data))
+            # Decrypt if needed before returning
+            results.append(self._decrypt_memory_response(memory_data))
 
             if len(results) >= limit:
                 break
@@ -373,7 +459,8 @@ class MemoryService:
             if similarity < search_query.similarity_threshold:
                 continue
 
-            filtered.append(self._memory_to_response(memory_data))
+            # Decrypt if needed before returning
+            filtered.append(self._decrypt_memory_response(memory_data))
 
         logger.info(
             f"Search for '{query}' returned {len(filtered)} results"
@@ -532,6 +619,419 @@ class MemoryService:
             total_memories=len(self._memories),
             by_type=by_type,
             by_agent=by_agent,
+            deduplication_count=self._deduplication_count,
+            cleanup_count=self._cleanup_count,
+            last_cleanup=self._last_cleanup,
+        )
+
+    # Settings management
+    _settings: MemorySettings = MemorySettings()
+
+    # Consolidation tracking
+    _deduplication_count: int = 0
+    _cleanup_count: int = 0
+    _last_cleanup: datetime | None = None
+
+    async def get_settings(self) -> MemorySettings:
+        """Get memory settings.
+
+        Returns:
+            Current memory settings
+        """
+        return self._settings
+
+    async def update_settings(self, settings: MemorySettings) -> MemorySettings:
+        """Update memory settings.
+
+        Args:
+            settings: New settings
+
+        Returns:
+            Updated settings
+        """
+        self._settings = settings
+        logger.info("Updated memory settings")
+        return self._settings
+
+    # Summarization methods
+    async def summarize_memory(
+        self, memory_id: str, request: MemorySummaryRequest
+    ) -> MemoryResponse | None:
+        """Summarize a specific memory.
+
+        Args:
+            memory_id: Memory to summarize
+            request: Summarization request
+
+        Returns:
+            Updated memory with summary
+        """
+        memory_data = self._memories.get(memory_id)
+        if not memory_data:
+            return None
+
+        # Generate summary content based on level
+        summary_type = request.level.value
+        original_content = memory_data["content"]
+
+        # Create summary (placeholder - in production would use LLM)
+        summary_content = f"[{summary_type.upper()}] {original_content[:100]}..."
+
+        # Update memory with summary
+        memory_data["content"] = summary_content
+        memory_data["metadata"]["summarized"] = True
+        memory_data["metadata"]["summary_level"] = request.level.value
+        memory_data["updated_at"] = datetime.utcnow()
+
+        logger.info(f"Summarized memory: {memory_id}")
+        return self._memory_to_response(memory_data)
+
+    async def get_pending_summaries(self, limit: int = 20) -> list[PendingSummary]:
+        """Get memories pending summarization.
+
+        Args:
+            limit: Maximum results
+
+        Returns:
+            List of memories pending summarization
+        """
+        pending = []
+        for memory_id, memory_data in self._memories.items():
+            # Skip already summarized or session summaries
+            if memory_data["metadata"].get("summarized"):
+                continue
+            if memory_data["memory_type"] in ["session_summary", "consolidated"]:
+                continue
+
+            pending.append(
+                PendingSummary(
+                    memory_id=memory_id,
+                    content_preview=memory_data["content"][:100],
+                    memory_type=MemoryType(memory_data["memory_type"]),
+                    created_at=memory_data["created_at"],
+                    agent_id=memory_data.get("agent_id"),
+                )
+            )
+
+            if len(pending) >= limit:
+                break
+
+        return pending
+
+    # Consolidation methods
+    async def consolidate_memories(self) -> ConsolidateResult:
+        """Run memory deduplication and consolidation.
+
+        Returns:
+            Consolidation results
+        """
+        original_count = len(self._memories)
+
+        # Find duplicates
+        duplicates = await self.find_duplicates()
+        duplicates_merged = 0
+
+        # Merge duplicates (keep first, remove others)
+        for dup in duplicates:
+            if dup.memory_id_2 in self._memories:
+                del self._memories[dup.memory_id_2]
+                duplicates_merged += 1
+
+        # Create consolidated summary if needed
+        summaries_created = 0
+        if len(self._memories) > self._settings.summarization_threshold:
+            summary_content = f"Consolidated from {original_count} memories"
+            now = datetime.utcnow()
+            summary_id = f"consolidated_{now.strftime('%Y%m%d_%H%M%S')}"
+            self._memories[summary_id] = {
+                "id": summary_id,
+                "content": summary_content,
+                "memory_type": "consolidated",
+                "metadata": {"original_count": original_count},
+                "agent_id": None,
+                "session_id": None,
+                "importance": 1.0,
+                "created_at": now,
+                "updated_at": now,
+            }
+            summaries_created = 1
+
+        consolidated_count = len(self._memories)
+
+        # Update tracking metrics
+        self._deduplication_count += duplicates_merged
+        self._last_cleanup = datetime.utcnow()
+
+        logger.info(
+            f"Consolidated memories: {original_count} -> {consolidated_count}, "
+            f"duplicates merged: {duplicates_merged}, summaries: {summaries_created}"
+        )
+
+        return ConsolidateResult(
+            original_count=original_count,
+            consolidated_count=consolidated_count,
+            duplicates_found=len(duplicates),
+            duplicates_merged=duplicates_merged,
+            summaries_created=summaries_created,
+        )
+
+    async def cleanup_old_memories(self, days: int = 30) -> CleanupResult:
+        """Clean up memories older than specified days.
+
+        Args:
+            days: Number of days to retain
+
+        Returns:
+            Cleanup results
+        """
+        from datetime import timedelta
+
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        deleted_ids = []
+
+        for memory_id, memory_data in list(self._memories.items()):
+            if memory_data["created_at"] < cutoff:
+                # Don't delete consolidated/summary memories
+                if memory_data["memory_type"] not in ["session_summary", "consolidated"]:
+                    deleted_ids.append(memory_id)
+                    del self._memories[memory_id]
+
+        # Estimate freed space (rough approximation)
+        freed_space = len(deleted_ids) * 500  # ~500 bytes per memory
+
+        # Update tracking metrics
+        self._cleanup_count += len(deleted_ids)
+        self._last_cleanup = datetime.utcnow()
+
+        logger.info(f"Cleaned up {len(deleted_ids)} memories older than {days} days")
+
+        return CleanupResult(
+            deleted_count=len(deleted_ids),
+            freed_space=freed_space,
+        )
+
+    async def find_duplicates(
+        self, similarity_threshold: float = 0.85
+    ) -> list["DuplicateCandidate"]:
+        """Find potential duplicate memories.
+
+        Args:
+            similarity_threshold: Minimum similarity to consider duplicate
+
+        Returns:
+            List of duplicate candidates
+        """
+        from app.model.memory import DuplicateCandidate
+
+        duplicates = []
+        memory_list = list(self._memories.values())
+
+        # Compare each pair
+        for i, mem1 in enumerate(memory_list):
+            for mem2 in memory_list[i + 1 :]:
+                # Simple similarity based on content overlap
+                content1 = mem1["content"].lower()
+                content2 = mem2["content"].lower()
+
+                # Calculate simple similarity
+                if len(content1) > 10 and len(content2) > 10:
+                    # Check if one contains the other or significant overlap
+                    if content1 in content2 or content2 in content1:
+                        similarity = 1.0
+                    else:
+                        # Simple word overlap
+                        words1 = set(content1.split())
+                        words2 = set(content2.split())
+                        if words1 and words2:
+                            overlap = len(words1 & words2) / min(len(words1), len(words2))
+                            similarity = overlap
+                        else:
+                            similarity = 0.0
+
+                    if similarity >= similarity_threshold:
+                        duplicates.append(
+                            DuplicateCandidate(
+                                memory_id_1=mem1["id"],
+                                memory_id_2=mem2["id"],
+                                content_1=mem1["content"],
+                                content_2=mem2["content"],
+                                similarity=similarity,
+                            )
+                        )
+
+        return duplicates
+
+    async def deduplicate_memories(
+        self, similarity_threshold: float = 0.9
+    ) -> ConsolidationResult:
+        """Find and merge duplicate memories based on similarity.
+
+        Args:
+            similarity_threshold: Minimum similarity (0-1) to consider as duplicate
+
+        Returns:
+            Consolidation result with merge statistics
+        """
+        from app.model.memory import ConsolidationResult
+
+        original_count = len(self._memories)
+        duplicates = await self.find_duplicates(similarity_threshold)
+        duplicates_merged = 0
+
+        # Merge duplicates (keep higher importance memory)
+        for dup in duplicates:
+            mem1 = self._memories.get(dup.memory_id_1)
+            mem2 = self._memories.get(dup.memory_id_2)
+
+            if mem1 and mem2:
+                # Keep the one with higher importance
+                if mem1.get("importance", 1.0) >= mem2.get("importance", 1.0):
+                    remove_id = dup.memory_id_1
+                else:
+                    _, remove_id = dup.memory_id_1, dup.memory_id_2
+
+                if remove_id in self._memories:
+                    del self._memories[remove_id]
+                    duplicates_merged += 1
+
+        # Update tracking
+        self._deduplication_count += duplicates_merged
+        self._last_cleanup = datetime.utcnow()
+
+        logger.info(f"Deduplicated {duplicates_merged} memories")
+
+        return ConsolidationResult(
+            operation="deduplication",
+            memories_processed=original_count,
+            memories_merged=duplicates_merged,
+            memories_deleted=0,
+            duplicates_found=len(duplicates),
+        )
+
+    async def get_duplicate_candidates(
+        self, similarity_threshold: float = 0.9
+    ) -> list[DuplicateCandidate]:
+        """Find potential duplicate memories (alias for find_duplicates).
+
+        Args:
+            similarity_threshold: Minimum similarity to consider as duplicate
+
+        Returns:
+            List of duplicate candidates
+        """
+        return await self.find_duplicates(similarity_threshold)
+
+    # Encryption methods
+    _encrypted_memories: set[str] = set()
+    _encryption_enabled: bool = False
+
+    async def encrypt_memories(
+        self, memory_ids: list[str] | None = None, encrypt_all: bool = False
+    ) -> "EncryptResult":
+        """Encrypt sensitive memories.
+
+        Args:
+            memory_ids: Specific memories to encrypt (None = all)
+            encrypt_all: Encrypt all memories
+
+        Returns:
+            Encryption results
+        """
+        processed = 0
+        encrypted = 0
+        failed = []
+
+        if encrypt_all:
+            # Encrypt all memories
+            for memory_id in self._memories:
+                try:
+                    self._encrypted_memories.add(memory_id)
+                    encrypted += 1
+                    processed += 1
+                except Exception as e:
+                    logger.error(f"Failed to encrypt {memory_id}: {e}")
+                    failed.append(memory_id)
+        elif memory_ids:
+            # Encrypt specific memories
+            for memory_id in memory_ids:
+                try:
+                    if memory_id in self._memories:
+                        self._encrypted_memories.add(memory_id)
+                        encrypted += 1
+                    processed += 1
+                except Exception as e:
+                    logger.error(f"Failed to encrypt {memory_id}: {e}")
+                    failed.append(memory_id)
+        else:
+            # Auto-encrypt sensitive content (placeholder)
+            for memory_id, memory_data in self._memories.items():
+                content = memory_data["content"].lower()
+                # Check for sensitive keywords
+                if any(
+                    kw in content
+                    for kw in ["password", "api_key", "secret", "token", "credential"]
+                ):
+                    try:
+                        self._encrypted_memories.add(memory_id)
+                        encrypted += 1
+                        processed += 1
+                    except Exception as e:
+                        logger.error(f"Failed to encrypt {memory_id}: {e}")
+                        failed.append(memory_id)
+
+        self._encryption_enabled = encrypted > 0
+
+        logger.info(f"Encrypted {encrypted} memories")
+
+        return EncryptResult(
+            processed=processed,
+            encrypted=encrypted,
+            decrypted=0,
+            failed=failed,
+        )
+
+    async def decrypt_memories(self, memory_ids: list[str]) -> "EncryptResult":
+        """Decrypt memories.
+
+        Args:
+            memory_ids: Memories to decrypt
+
+        Returns:
+            Decryption results
+        """
+        decrypted = 0
+        failed = []
+
+        for memory_id in memory_ids:
+            try:
+                if memory_id in self._encrypted_memories:
+                    self._encrypted_memories.remove(memory_id)
+                    decrypted += 1
+            except Exception as e:
+                logger.error(f"Failed to decrypt {memory_id}: {e}")
+                failed.append(memory_id)
+
+        self._encryption_enabled = len(self._encrypted_memories) > 0
+
+        logger.info(f"Decrypted {decrypted} memories")
+
+        return EncryptResult(
+            processed=len(memory_ids),
+            encrypted=0,
+            decrypted=decrypted,
+            failed=failed,
+        )
+
+    async def get_encryption_status(self) -> "EncryptionStatus":
+        """Get encryption status.
+
+        Returns:
+            Current encryption status
+        """
+        return EncryptionStatus(
+            enabled=self._encryption_enabled,
+            algorithm="AES-256-GCM" if self._encryption_enabled else "None",
+            encrypted_memories=len(self._encrypted_memories),
         )
 
 

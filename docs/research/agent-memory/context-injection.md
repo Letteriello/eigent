@@ -12,14 +12,15 @@
 
 Context window limits vary significantly across models:
 
-| Model | Context Window | Recommended Memory Allocation |
-|-------|----------------|-------------------------------|
-| Claude 3.5 Sonnet | 200K tokens | 10-30% of window |
-| GPT-4 Turbo | 128K tokens | 10-20% of window |
-| GPT-4 | 8K-32K tokens | 15-25% of window |
-| Claude 3 Haiku | 200K tokens | 15-30% of window |
+| Model             | Context Window | Recommended Memory Allocation |
+| ----------------- | -------------- | ----------------------------- |
+| Claude 3.5 Sonnet | 200K tokens    | 10-30% of window              |
+| GPT-4 Turbo       | 128K tokens    | 10-20% of window              |
+| GPT-4             | 8K-32K tokens  | 15-25% of window              |
+| Claude 3 Haiku    | 200K tokens    | 15-30% of window              |
 
 **Rule of Thumb:** Reserve 50-70% of context for:
+
 - Current conversation history
 - System prompt
 - Tool definitions and outputs
@@ -39,6 +40,7 @@ Priority 4: Type-prioritized (preferences > facts > context > learned)
 ```
 
 **Implementation Pattern:**
+
 ```python
 def truncate_memories(memories: list[Memory], max_tokens: int) -> list[Memory]:
     # Sort by composite score
@@ -47,7 +49,7 @@ def truncate_memories(memories: list[Memory], max_tokens: int) -> list[Memory]:
         for m in memories
     ]
     scored.sort(key=lambda x: x[1], reverse=True)
-    
+
     # Select until token budget exhausted
     selected = []
     tokens_used = 0
@@ -58,18 +60,20 @@ def truncate_memories(memories: list[Memory], max_tokens: int) -> list[Memory]:
             tokens_used += memory_tokens
         else:
             break
-    
+
     return selected
 ```
 
 ### 1.3 Priority Ranking for Memories
 
 **Composite Score Formula:**
+
 ```
 priority_score = (importance * 0.4) + (recency * 0.3) + (relevance * 0.3)
 ```
 
 Where:
+
 - **importance**: User-defined or auto-calculated (1.0 = critical, 0.1 = trivial)
 - **recency**: Time-based decay (1.0 = now, 0.0 = infinitely old)
 - **relevance**: Similarity score from search (0.0-1.0)
@@ -82,14 +86,15 @@ Where:
 
 Default thresholds by memory type:
 
-| Memory Type | Recommended Threshold | Rationale |
-|-------------|----------------------|-----------|
-| Preferences | 0.2-0.3 | User preferences should rarely be missed |
-| Facts | 0.3-0.4 | Factual recall needs precision |
-| Learned | 0.35-0.5 | Derived knowledge can be more specific |
-| Context | 0.25-0.35 | Broader context is useful |
+| Memory Type | Recommended Threshold | Rationale                                |
+| ----------- | --------------------- | ---------------------------------------- |
+| Preferences | 0.2-0.3               | User preferences should rarely be missed |
+| Facts       | 0.3-0.4               | Factual recall needs precision           |
+| Learned     | 0.35-0.5              | Derived knowledge can be more specific   |
+| Context     | 0.25-0.35             | Broader context is useful                |
 
 **Adaptive Threshold:**
+
 ```python
 def get_adaptive_threshold(memory_types: list[MemoryType]) -> float:
     if MemoryType.preference in memory_types:
@@ -118,15 +123,16 @@ async def expand_query(original_query: str) -> list[str]:
 ```
 
 **Multi-query Retrieval:**
+
 ```python
 async def retrieve_with_expansion(query: str, top_k: int) -> list[Memory]:
     expanded_queries = await expand_query(query)
-    
+
     all_results = []
     for expanded_q in expanded_queries:
         results = await search_memories(expanded_q, top_k=top_k)
         all_results.extend(results)
-    
+
     # Deduplicate and re-rank
     return deduplicate_and_rerank(all_results, top_k)
 ```
@@ -136,20 +142,21 @@ async def retrieve_with_expansion(query: str, top_k: int) -> list[Memory]:
 After initial retrieval, apply re-ranking:
 
 **Cross-encoder Re-ranking:**
+
 ```python
 async def rerank_memories(query: str, memories: list[Memory], top_k: int) -> list[Memory]:
     # Use cross-encoder for accurate scoring
     cross_encoder = load_cross_encoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-    
+
     pairs = [(query, mem.content) for mem in memories]
     scores = cross_encoder.predict(pairs)
-    
+
     # Combine with original relevance
     combined = [
         (mem, original_score * 0.4 + cross_score * 0.6)
         for mem, original_score in zip(memories, get_original_scores(memories))
     ]
-    
+
     combined.sort(key=lambda x: x[1], reverse=True)
     return [m for m, _ in combined[:top_k]]
 ```
@@ -168,20 +175,25 @@ Claude responds well to structured, markdown-formatted context:
 The following information may be helpful for this conversation:
 
 ### User Preferences
+
 - [preference] User prefers TypeScript over JavaScript
 - [preference] User likes dark mode enabled
 
 ### Relevant Facts
+
 - [fact] Current project uses React 18 with TypeScript
 
 ### Project Context
+
 - [context] This is a desktop application for AIThis context agents
 
 ---
-* was automatically retrieved from your long-term memory.*
+
+- was automatically retrieved from your long-term memory.\*
 ```
 
 **Claude Optimizations:**
+
 - Use clear section headers
 - Prefix memories with type tags
 - Include "may be helpful" framing (not absolute)
@@ -194,12 +206,14 @@ GPT models prefer concise, direct formatting:
 
 ```markdown
 Relevant context:
+
 - Preference: User prefers Python for data tasks
 - Fact: Current backend is FastAPI
 - Context: Project is an AI desktop application
 ```
 
 **GPT Optimizations:**
+
 - Bullet-point format
 - Single-line entries when possible
 - Less verbose headers
@@ -209,23 +223,24 @@ Relevant context:
 
 **Compression Techniques:**
 
-| Technique | Token Savings | Use When |
-|----------|--------------|----------|
-| Remove stop words | 20-30% | High memory volume |
-| Abbreviate types | 5-10% | Always safe |
-| Merge similar | 10-20% | Many related memories |
-| Summarize | 30-50% | Long-form memories |
+| Technique         | Token Savings | Use When              |
+| ----------------- | ------------- | --------------------- |
+| Remove stop words | 20-30%        | High memory volume    |
+| Abbreviate types  | 5-10%         | Always safe           |
+| Merge similar     | 10-20%        | Many related memories |
+| Summarize         | 30-50%        | Long-form memories    |
 
 **Implementation:**
+
 ```python
 def compress_memory_content(content: str, memory_type: MemoryType) -> str:
     if memory_type == MemoryType.preference:
         return content  # Keep preferences verbose
-    
+
     if len(content) > 200:
         # Truncate with ellipsis for non-critical
         return content[:197] + "..."
-    
+
     return content
 ```
 
@@ -235,18 +250,19 @@ def compress_memory_content(content: str, memory_type: MemoryType) -> str:
 
 ### 4.1 What's Working Well
 
-| Feature | Implementation | Assessment |
-|---------|---------------|------------|
-| **Hybrid Search** | BM25 + Vector + RRF | ✅ Excellent - best practice |
-| **Memory Types** | 4 types (preference, fact, context, learned) | ✅ Good categorization |
-| **Importance Scoring** | Metadata-based importance field | ✅ Foundation exists |
-| **Templates** | Default + Short templates | ✅ Flexible formatting |
-| **Async Operations** | Async/await throughout | ✅ Good performance |
-| **Error Handling** | Graceful fallbacks | ✅ Robust |
+| Feature                | Implementation                               | Assessment                   |
+| ---------------------- | -------------------------------------------- | ---------------------------- |
+| **Hybrid Search**      | BM25 + Vector + RRF                          | ✅ Excellent - best practice |
+| **Memory Types**       | 4 types (preference, fact, context, learned) | ✅ Good categorization       |
+| **Importance Scoring** | Metadata-based importance field              | ✅ Foundation exists         |
+| **Templates**          | Default + Short templates                    | ✅ Flexible formatting       |
+| **Async Operations**   | Async/await throughout                       | ✅ Good performance          |
+| **Error Handling**     | Graceful fallbacks                           | ✅ Robust                    |
 
 ### 4.2 Current Implementation Analysis
 
 **Strengths:**
+
 ```python
 # Good: Hybrid search with RRF
 combined = self._reciprocal_rank_fusion(vector_results, bm25_results, top_k)
@@ -288,13 +304,13 @@ similarity_threshold: float = 0.3
 
 ### 4.3 Recommended Improvements
 
-| Priority | Improvement | Complexity | Impact |
-|----------|-------------|-----------|--------|
-| High | Add recency weighting to ranking | Medium | High |
-| High | Implement token budget management | Medium | High |
-| Medium | Add query expansion | Medium | Medium |
-| Medium | Add result deduplication | Low | Medium |
-| Low | Adaptive thresholds per memory type | Low | Low |
+| Priority | Improvement                         | Complexity | Impact |
+| -------- | ----------------------------------- | ---------- | ------ |
+| High     | Add recency weighting to ranking    | Medium     | High   |
+| High     | Implement token budget management   | Medium     | High   |
+| Medium   | Add query expansion                 | Medium     | Medium |
+| Medium   | Add result deduplication            | Low        | Medium |
+| Low      | Adaptive thresholds per memory type | Low        | Low    |
 
 ---
 
@@ -303,25 +319,27 @@ similarity_threshold: float = 0.3
 ### 5.1 Memory-Based Prompt Engineering
 
 **Chain-of-Memory Pattern:**
+
 ```python
 async def enhanced_inject_memory_context(query: str, conversation_history: list) -> str:
     # Step 1: Get immediate context from recent conversation
     recent_memories = await get_recent_memories(conversation_history[-3:], top_k=2)
-    
+
     # Step 2: Get long-term relevant memories
     long_term_memories = await search_memories(query, top_k=3)
-    
+
     # Step 3: Combine with priority
     combined = prioritize_memories(
         recent_memories + long_term_memories,
         weights={"recency": 0.5, "relevance": 0.3, "importance": 0.2}
     )
-    
+
     # Step 4: Format with attribution
     return format_memory_context(combined, sources=["recent", "long-term"])
 ```
 
 **Self-Correction Pattern:**
+
 ```python
 async def verify_and_inject(memories: list[Memory], query: str) -> list[Memory]:
     verified = []
@@ -339,19 +357,19 @@ async def verify_and_inject(memories: list[Memory], query: str) -> list[Memory]:
 async def multi_step_retrieve(query: str, memory_types: list[MemoryType]) -> list[Memory]:
     # Step 1: Broad retrieval
     broad_results = await search_memories(query, top_k=10, threshold=0.2)
-    
+
     # Step 2: Category-specific refinement
     refined = {}
     for mem_type in memory_types:
         type_results = [m for m in broad_results if m.memory_type == mem_type]
         # Keep top 2 per type
         refined[mem_type] = type_results[:2]
-    
+
     # Step 3: Cross-type consolidation
     all_refined = []
     for results in refined.values():
         all_extended.extend(results)
-    
+
     # Step 4: Final ranking
     return rank_by_composite_score(all_refined, query)
 ```
@@ -359,6 +377,7 @@ async def multi_step_retrieve(query: str, memory_types: list[MemoryType]) -> lis
 ### 5.3 Caching Strategies
 
 **Query Result Cache:**
+
 ```python
 from functools import lru_cache
 import hashlib
@@ -375,19 +394,20 @@ def cache_key(query: str, memory_types: tuple, agent_id: str | None) -> str:
 ```
 
 **Session-Level Cache:**
+
 ```python
 class SessionMemoryCache:
     def __init__(self, ttl_seconds: int = 300):
         self._cache = {}
         self._ttl = ttl_seconds
-    
+
     def get(self, query: str) -> list[Memory] | None:
         if query in self._cache:
             result, timestamp = self._cache[query]
             if time.time() - timestamp < self._ttl:
                 return result
         return None
-    
+
     def set(self, query: str, results: list[Memory]) -> None:
         self._cache[query] = (results, time.time())
 ```
@@ -399,6 +419,7 @@ class SessionMemoryCache:
 ### 6.1 Quick Wins (1-2 days)
 
 1. **Add recency weighting:**
+
 ```python
 def calculate_recency_score(created_at: datetime) -> float:
     hours_old = (datetime.utcnow() - created_at).total_seconds() / 3600
@@ -406,12 +427,14 @@ def calculate_recency_score(created_at: datetime) -> float:
 ```
 
 2. **Implement token counting:**
+
 ```python
 def estimate_tokens(text: str) -> int:
     return len(text) // 4  # Rough approximation
 ```
 
 3. **Add deduplication:**
+
 ```python
 def deduplicate_by_similarity(memories: list[Memory], threshold: float = 0.9) -> list[Memory]:
     # Use embeddings to find near-duplicates
@@ -444,6 +467,6 @@ def deduplicate_by_similarity(memories: list[Memory], threshold: float = 0.9) ->
 
 ## 8. Document History
 
-| Date | Author | Changes |
-|------|--------|---------|
+| Date       | Author      | Changes                   |
+| ---------- | ----------- | ------------------------- |
 | 2026-03-08 | Claude Code | Initial research document |
