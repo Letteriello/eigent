@@ -2673,6 +2673,11 @@ const chatStore = (initial?: Partial<ChatStore>) =>
       }));
     },
     setAttaches(taskId, attaches) {
+      const currentTask = get().tasks[taskId];
+      // Skip update if attaches reference is the same (shallow equality)
+      if (currentTask && currentTask.attaches === attaches) {
+        return;
+      }
       set((state) => ({
         ...state,
         tasks: {
@@ -2685,6 +2690,12 @@ const chatStore = (initial?: Partial<ChatStore>) =>
       }));
     },
     setMessages(taskId, messages) {
+      const currentTask = get().tasks[taskId];
+      // Skip update if messages reference is the same (shallow equality)
+      // This prevents unnecessary re-renders when the same array is passed
+      if (currentTask && currentTask.messages === messages) {
+        return;
+      }
       set((state) => ({
         ...state,
         tasks: {
@@ -2729,6 +2740,11 @@ const chatStore = (initial?: Partial<ChatStore>) =>
     },
 
     setSummaryTask(taskId, summaryTask) {
+      const currentTask = get().tasks[taskId];
+      // Skip update if summaryTask is the same (shallow equality)
+      if (currentTask && currentTask.summaryTask === summaryTask) {
+        return;
+      }
       set((state) => ({
         ...state,
         tasks: {
@@ -2974,6 +2990,11 @@ const chatStore = (initial?: Partial<ChatStore>) =>
       }));
     },
     setProgressValue(taskId: string, progressValue: number) {
+      const currentTask = get().tasks[taskId];
+      // Skip update if progressValue is the same (shallow equality)
+      if (currentTask && currentTask.progressValue === progressValue) {
+        return;
+      }
       set((state) => ({
         ...state,
         tasks: {
@@ -3447,6 +3468,81 @@ const filterMessage = (message: AgentMessage) => {
 
 export const useChatStore = chatStore;
 
+// ============================================================================
+// SELECTORS - Optimized access to prevent unnecessary re-renders
+// ============================================================================
+
+import { shallow } from 'zustand/shallow';
+
+/**
+ * Selector for active task ID only
+ * Use this when you only need the active task ID to prevent re-renders
+ * when other parts of the store change
+ */
+export const useActiveTaskIdSelector = () =>
+  chatStore((state) => state.activeTaskId);
+
+/**
+ * Selector for tasks object
+ * Use shallow equality to prevent re-render when task properties change
+ * but the tasks object itself remains the same
+ */
+export const useTasksSelector = () =>
+  chatStore((state) => state.tasks, shallow);
+
+/**
+ * Selector for a specific task by ID
+ * Returns undefined if task doesn't exist
+ */
+export const useTaskSelector = (taskId: string | null) =>
+  chatStore((state) => (taskId ? state.tasks[taskId] : undefined), shallow);
+
+/**
+ * Selector for active task
+ * Returns the active task or undefined
+ */
+export const useActiveTaskSelector = () =>
+  chatStore((state) =>
+    state.activeTaskId ? state.tasks[state.activeTaskId] : undefined
+  );
+
+/**
+ * Selector for task status
+ * Use this when you only need the status of a specific task
+ */
+export const useTaskStatusSelector = (taskId: string | null) =>
+  chatStore((state) => (taskId ? state.tasks[taskId]?.status : undefined));
+
+/**
+ * Selector for task messages
+ * Use this when you only need messages of a specific task
+ */
+export const useTaskMessagesSelector = (taskId: string | null) =>
+  chatStore((state) => (taskId ? state.tasks[taskId]?.messages : []), shallow);
+
+/**
+ * Selector for update count
+ * Use this to trigger re-renders only when the count changes
+ */
+export const useUpdateCountSelector = () =>
+  chatStore((state) => state.updateCount);
+
+/**
+ * Selector for checking if any task is pending
+ */
+export const useAnyTaskPendingSelector = () =>
+  chatStore((state) =>
+    Object.values(state.tasks).some((task) => task.isPending)
+  );
+
+/**
+ * Hook to get a specific task by ID - optimized for performance
+ * Uses shallow comparison to prevent unnecessary re-renders
+ */
+export const useGetTask = (taskId: string | null) => {
+  return chatStore((state) => (taskId ? state.tasks[taskId] : null), shallow);
+};
+
 /** Create a new chat store instance. Use this in non-React code (e.g. projectStore). */
 export const createChatStoreInstance = chatStore;
 
@@ -3474,3 +3570,22 @@ export function closeSSEConnectionsForTasks(taskIds: string[]): void {
     }
   }
 }
+
+// ========= OPTIMIZED SELECTORS (prevent unnecessary re-renders) =========
+
+/** Selector for active task ID only */
+export const useActiveTaskId = () =>
+  chatStore((state) => state.activeTaskId, shallow);
+
+/** Selector for all task IDs in the store */
+export const useTaskIds = () =>
+  chatStore((state) => Object.keys(state.tasks), shallow);
+
+/** Selector for checking if any task is pending */
+export const useAnyTaskPending = () =>
+  chatStore(
+    (state) => ({
+      isPending: Object.values(state.tasks).some((task) => task.isPending),
+    }),
+    shallow
+  );

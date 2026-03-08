@@ -13,7 +13,7 @@
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
 import react from '@vitejs/plugin-react';
-import { readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 import electron from 'vite-plugin-electron/simple';
@@ -21,12 +21,47 @@ import pkg from './package.json';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
-  rmSync('dist-electron', { recursive: true, force: true });
+  // PERFORMANCE: Only clean dist-electron when explicitly needed
+  // This was causing slow dev server startup on every rebuild
+  const shouldClean = !existsSync('dist-electron/main/index.js');
+  if (shouldClean) {
+    try {
+      rmSync('dist-electron', { recursive: true, force: true });
+    } catch {
+      // Ignore if doesn't exist
+    }
+  }
 
   const isServe = command === 'serve';
   const isBuild = command === 'build';
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG;
   const env = loadEnv(mode, process.cwd(), '');
+
+  // PERFORMANCE: Define manual chunks for better code splitting
+  const manualChunks = (id: string) => {
+    if (
+      id.includes('node_modules/react') ||
+      id.includes('node_modules/use-sync-external-store')
+    ) {
+      return 'vendor-react';
+    }
+    if (
+      id.includes('node_modules/@radix-ui') ||
+      id.includes('node_modules/lucide-react')
+    ) {
+      return 'vendor-ui';
+    }
+    if (
+      id.includes('node_modules/@xyflow') ||
+      id.includes('node_modules/reactflow')
+    ) {
+      return 'vendor-flow';
+    }
+    if (id.includes('node_modules/@tanstack')) {
+      return 'vendor-query';
+    }
+  };
+
   return {
     resolve: {
       alias: {
@@ -36,6 +71,30 @@ export default defineConfig(({ command, mode }) => {
     optimizeDeps: {
       exclude: ['@stackframe/react'],
       force: true,
+    },
+    build: {
+      // PERFORMANCE: Target modern browsers for smaller bundles
+      target: 'esnext',
+      // PERFORMANCE: Minify with esbuild for speed
+      minify: isBuild ? 'esbuild' : false,
+      // PERFORMANCE: Generate sourcemap only in dev or if explicitly needed
+      sourcemap: sourcemap,
+      // PERFORMANCE: Budget limits to prevent bundle bloat (in kB)
+      chunkSizeWarningLimit: 500,
+      // PERFORMANCE: Enable rollup chunking for better caching
+      rollupOptions: {
+        output: {
+          manualChunks,
+          // Optimize chunk file names for caching
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
+          // PERFORMANCE: Use const functions for smaller output
+          generatedCode: {
+            constFunctions: true,
+          },
+        },
+      },
     },
     plugins: [
       react(),
@@ -48,6 +107,7 @@ export default defineConfig(({ command, mode }) => {
               console.log(
                 /* For `.vscode/.debug.script.mjs` */ '[startup] Electron App'
               );
+              args.startup();
             } else {
               args.startup();
             }
