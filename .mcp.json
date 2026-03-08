@@ -19,9 +19,8 @@
       "run",
       "serena",
       "start-mcp-server",
-      "--project-from-cwd",
-      "--transport",
-      "sse"
+      "--project",
+      "C:/Users/gabri/Desktop/eigent"
     ]
   }
 }
