@@ -570,9 +570,9 @@ describe('Integration Test: Replay Functionality', () => {
         const chatStore2 = allChatStores[2].chatStore;
 
         const task1 =
-          chatStore1.getState().tasks[chatStore1.getState().activeTaskId];
+          chatStore1.getState().tasks[chatStore1.getState().activeTaskId!];
         const task2 =
-          chatStore2.getState().tasks[chatStore2.getState().activeTaskId];
+          chatStore2.getState().tasks[chatStore2.getState().activeTaskId!];
 
         expect(task1).toBeDefined();
         expect(task2).toBeDefined();
@@ -729,8 +729,8 @@ describe('Issue #619 - Duplicate Task Boxes after replay', () => {
       () => {
         rerender();
         const { chatStore, projectStore: _projectStore } = result.current;
-        const taskId = chatStore.activeTaskId;
-        const task = chatStore.tasks[taskId];
+        const taskId = chatStore.activeTaskId!;
+        const task = chatStore.tasks[taskId]!;
 
         // Task should have subtasks (making it busy)
         expect(task.summaryTask).toBe(
@@ -887,7 +887,7 @@ describe('Issue #619 - Duplicate Task Boxes after replay', () => {
     // Step 3: Start initial task
     await act(async () => {
       const { chatStore } = result.current;
-      const taskId = chatStore.activeTaskId;
+      const taskId = chatStore.activeTaskId!;
       await chatStore.startTask(
         taskId,
         undefined,
