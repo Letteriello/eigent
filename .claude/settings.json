@@ -33,11 +33,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd .. && npx prettier --write ${CLAUDE_FILE_PATH}"
+            "command": "npx prettier --write ${CLAUDE_FILE_PATH}"
           },
           {
             "type": "command",
-            "command": "cd .. && npx eslint --fix ${CLAUDE_FILE_PATH}"
+            "command": "npx eslint --fix ${CLAUDE_FILE_PATH}"
           }
         ]
       },
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd .. && npx tsc --noEmit ${CLAUDE_FILE_PATH}"
+            "command": "npx tsc --noEmit ${CLAUDE_FILE_PATH}"
           }
         ]
       },
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd .. && npx vitest run ${CLAUDE_FILE_PATH}"
+            "command": "npx vitest run ${CLAUDE_FILE_PATH}"
           }
         ]
       }
