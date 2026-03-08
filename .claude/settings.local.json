@@ -1,0 +1,17 @@
+{
+  "enabledMcpjsonServers": ["notebooklm", "serena"],
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "preferences": {
+    "agentTeams": {
+      "showPanel": true,
+      "keyboardShortcut": "CmdOrCtrl+T"
+    },
+    "theme": "dark",
+    "memory": {
+      "showTokenCount": true,
+      "alertAtTokens": 60000
+    }
+  }
+}

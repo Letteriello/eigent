@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd C:/Users/gabri/Desktop/eigent/backend && .venv/Scripts/python -m ruff check --fix ${CLAUDE_FILE_PATH}"
+            "command": "cd ../backend && .venv/Scripts/python -m ruff check --fix ${CLAUDE_FILE_PATH}"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd C:/Users/gabri/Desktop/eigent/backend && .venv/Scripts/python -m pytest ${CLAUDE_FILE_PATH} -v"
+            "command": "cd ../backend && .venv/Scripts/python -m pytest ${CLAUDE_FILE_PATH} -v"
           }
         ]
       },
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd C:/Users/gabri/Desktop/eigent/backend && .venv/Scripts/python -m bandit -r ${CLAUDE_FILE_PATH}"
+            "command": "cd ../backend && .venv/Scripts/python -m bandit -r ${CLAUDE_FILE_PATH}"
           }
         ]
       },
@@ -33,11 +33,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd C:/Users/gabri/Desktop/eigent && npx prettier --write ${CLAUDE_FILE_PATH}"
+            "command": "cd .. && npx prettier --write ${CLAUDE_FILE_PATH}"
           },
           {
             "type": "command",
-            "command": "cd C:/Users/gabri/Desktop/eigent && npx eslint --fix ${CLAUDE_FILE_PATH}"
+            "command": "cd .. && npx eslint --fix ${CLAUDE_FILE_PATH}"
           }
         ]
       },
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd C:/Users/gabri/Desktop/eigent && npx tsc --noEmit ${CLAUDE_FILE_PATH}"
+            "command": "cd .. && npx tsc --noEmit ${CLAUDE_FILE_PATH}"
           }
         ]
       },
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd C:/Users/gabri/Desktop/eigent && npx vitest run ${CLAUDE_FILE_PATH}"
+            "command": "cd .. && npx vitest run ${CLAUDE_FILE_PATH}"
           }
         ]
       }

@@ -1,3 +1,21 @@
+---
+name: "code-reviewer"
+description: "Especialista em revisão de código, bugs, segurança e performance"
+color: "#f59e0b"
+tools:
+  - Read
+  - Edit
+  - Write
+  - Grep
+  - Glob
+  - Bash
+skills:
+  - TypeScript
+  - Python
+  - Security
+  - Performance
+---
+
 # Code Review Agent
 
 Specialized in reviewing code for quality, bugs, security, and best practices.
@@ -14,8 +32,8 @@ Specialized in reviewing code for quality, bugs, security, and best practices.
 ## Review Guidelines
 
 - Check for TypeScript errors: `npm run type-check`
-- Check for Python lint: `cd backend && .venv/Scripts/python -m ruff check`
-- Verify tests pass: `npm run test` and `cd backend && .venv/Scripts/python -m pytest`
+- Check for Python lint: `cd backend && uv run ruff check`
+- Verify tests pass: `npm run test` and `cd backend && uv run pytest`
 - Look for potential bugs and logic errors
 - Check for security issues (no hardcoded secrets, proper input validation)
 - Ensure code follows project conventions

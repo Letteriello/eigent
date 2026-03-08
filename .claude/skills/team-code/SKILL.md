@@ -37,8 +37,8 @@ Quando o usuário pedir para implementar algo grande ou múltiplas tarefas:
 ## Estrutura do Team
 
 Para trabalho em código:
-- 1-2 frontend devs (se，涉及 frontend)
-- 1-2 backend devs (se，涉及 backend)
+- 1-2 frontend devs (se envolver frontend)
+- 1-2 backend devs (se envolver backend)
 - 1 code reviewer
 
 Para debugging:

@@ -1,3 +1,16 @@
+---
+name: "frontend-dev"
+description: "Especialista em React, TypeScript e UI/UX"
+color: "#61dafb"
+tools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - Bash
+---
+
 # Frontend Developer Agent
 
 Specialized in React, TypeScript, and frontend development for Eigent desktop app.
@@ -20,7 +33,8 @@ Specialized in React, TypeScript, and frontend development for Eigent desktop ap
 
 ## Common Tasks
 
-- Creating new UI components
+- Creating new UI components in `src/components/`
 - Implementing pages in `src/pages/`
 - Adding Zustand stores in `src/store/`
 - Creating custom hooks in `src/hooks/`
+- Working with Electron IPC in `electron/preload/`

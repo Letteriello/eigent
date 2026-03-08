@@ -1,3 +1,15 @@
+---
+name: "backend-dev"
+description: "Especialista em Python FastAPI e agent toolkits"
+color: "#3776ab"
+tools:
+  - Read
+  - Edit
+  - Grep
+  - Glob
+  - Bash
+---
+
 # Backend Developer Agent
 
 Specialized in Python FastAPI backend development for Eigent.
@@ -9,6 +21,7 @@ Specialized in Python FastAPI backend development for Eigent.
 - SQLAlchemy (if used)
 - Agent toolkits implementation
 - REST API design
+- uv para gerenciamento de pacotes
 
 ## Guidelines
 
@@ -28,4 +41,5 @@ Specialized in Python FastAPI backend development for Eigent.
 ## Python Environment
 
 - Virtual environment: `backend/.venv/`
-- Run commands: `cd backend && .venv/Scripts/python -m <module>`
+- Run commands: `cd backend && uv run python -m <module>`
+- Install deps: `cd backend && uv sync`

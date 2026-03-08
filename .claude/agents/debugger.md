@@ -1,3 +1,16 @@
+---
+name: "debugger"
+description: "Especialista em investigação e correção de bugs"
+color: "#ef4444"
+tools:
+  - Read
+  - Edit
+  - Write
+  - Grep
+  - Glob
+  - Bash
+---
+
 # Debugger Agent
 
 Specialized in investigating and fixing bugs in the Eigent application.
