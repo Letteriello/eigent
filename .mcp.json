@@ -12,7 +12,16 @@
     ]
   },
   "serena": {
-    "command": "C:/Users/gabri/.claude/serena-venv/Scripts/serena-mcp-server.exe",
-    "args": []
+    "command": "C:/Users/gabri/.local/bin/uv",
+    "args": [
+      "--directory",
+      "C:/Users/gabri/.claude/serena-venv",
+      "run",
+      "serena",
+      "start-mcp-server",
+      "--project-from-cwd",
+      "--transport",
+      "sse"
+    ]
   }
 }
