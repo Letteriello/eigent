@@ -96,6 +96,46 @@ interface MemoryState {
 
 const API_BASE = '/api/memory';
 
+// Maximum memories to persist in localStorage to prevent unbounded growth
+const MAX_PERSISTED_MEMORIES = 1000;
+// Maximum summaries to persist in localStorage
+const MAX_PERSISTED_SUMMARIES = 500;
+
+/**
+ * Trim memories array to maximum size, keeping most recent entries
+ */
+function trimMemories(memories: Memory[]): Memory[] {
+  if (memories.length > MAX_PERSISTED_MEMORIES) {
+    console.warn(
+      `[MemoryStore] Trimming memories from ${memories.length} to ${MAX_PERSISTED_MEMORIES}`
+    );
+    return memories.slice(0, MAX_PERSISTED_MEMORIES);
+  }
+  return memories;
+}
+
+/**
+ * Trim summaries object to maximum size, keeping most recent entries
+ */
+function trimSummaries(
+  summaries: Record<string, MemorySummary>
+): Record<string, MemorySummary> {
+  const entries = Object.entries(summaries);
+  if (entries.length > MAX_PERSISTED_SUMMARIES) {
+    console.warn(
+      `[MemoryStore] Trimming summaries from ${entries.length} to ${MAX_PERSISTED_SUMMARIES}`
+    );
+    // Sort by generatedAt (most recent first) and keep top N
+    const sorted = entries.sort((a, b) => {
+      const dateA = new Date(a[1].generatedAt).getTime();
+      const dateB = new Date(b[1].generatedAt).getTime();
+      return dateB - dateA;
+    });
+    return Object.fromEntries(sorted.slice(0, MAX_PERSISTED_SUMMARIES));
+  }
+  return summaries;
+}
+
 export const useMemoryStore = create<MemoryState>()(
   persist(
     (set, get) => ({
@@ -159,9 +199,9 @@ export const useMemoryStore = create<MemoryState>()(
 
           const memory = (await response.json()) as Memory;
 
-          // Update local state
+          // Update local state with trim to prevent unbounded growth
           set((state) => ({
-            memories: [memory, ...state.memories],
+            memories: trimMemories([memory, ...state.memories]),
             isLoading: false,
           }));
 
@@ -324,12 +364,12 @@ export const useMemoryStore = create<MemoryState>()(
 
           const summary = (await response.json()) as MemorySummary;
 
-          // Update local state
+          // Update local state with trim to prevent unbounded growth
           set((state) => ({
-            summaries: {
+            summaries: trimSummaries({
               ...state.summaries,
               [memoryId]: summary,
-            },
+            }),
             summarizationStatus: 'idle',
           }));
 
@@ -351,8 +391,8 @@ export const useMemoryStore = create<MemoryState>()(
     {
       name: 'memory-storage',
       partialize: (state) => ({
-        memories: state.memories,
-        summaries: state.summaries,
+        memories: trimMemories(state.memories),
+        summaries: trimSummaries(state.summaries),
       }),
     }
   )

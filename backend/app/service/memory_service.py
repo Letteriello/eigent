@@ -18,6 +18,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,72 @@ from camel.embeddings import OpenAIEmbedding
 from camel.storages import QdrantStorage
 
 from app.component.environment import env
+
+
+class TTLCache:
+    """Simple in-memory cache with TTL support."""
+
+    def __init__(self, ttl: int = 300, maxsize: int = 1000):
+        """Initialize TTL cache.
+
+        Args:
+            ttl: Time to live in seconds (default: 5 minutes)
+            maxsize: Maximum number of entries
+        """
+        self._cache: dict[str, tuple[Any, float]] = {}
+        self._ttl = ttl
+        self._maxsize = maxsize
+
+    def get(self, key: str) -> Any | None:
+        """Get value from cache if not expired.
+
+        Args:
+            key: Cache key
+
+        Returns:
+            Cached value or None if expired/missing
+        """
+        if key in self._cache:
+            value, timestamp = self._cache[key]
+            if time.time() - timestamp < self._ttl:
+                return value
+            del self._cache[key]
+        return None
+
+    def set(self, key: str, value: Any) -> None:
+        """Set value in cache with current timestamp.
+
+        Args:
+            key: Cache key
+            value: Value to cache
+        """
+        # Evict oldest entries if cache is full
+        if len(self._cache) >= self._maxsize:
+            # Remove 20% oldest entries
+            keys_to_remove = sorted(
+                self._cache.keys(),
+                key=lambda k: self._cache[k][1]
+            )[:self._maxsize // 5]
+            for k in keys_to_remove:
+                del self._cache[k]
+        self._cache[key] = (value, time.time())
+
+    def clear(self) -> None:
+        """Clear all cache entries."""
+        self._cache.clear()
+
+
+# Module-level caches
+_embedding_cache: dict[str, tuple] = {}
+_EMBEDDING_CACHE_MAX_SIZE = 5000
+
+# Search result cache (TTL: 5 minutes, max 500 queries)
+_search_cache = TTLCache(ttl=300, maxsize=500)
+
+# BM25 index cache (TTL: 1 minute - rebuilds frequently with new memories)
+_bm25_index_cache: tuple | None = None
+_bm25_index_timestamp: float = 0
+_BM25_INDEX_TTL = 60  # 1 minute
 from app.model.enums import MemoryType
 from app.model.memory import (
     CleanupResult,
@@ -104,6 +171,49 @@ class MemoryService:
                 raise ValueError("OPENAI_API_KEY is required for memory embeddings")
             self._embedding_model = OpenAIEmbedding(api_key=api_key)
         return self._embedding_model
+
+
+# Module-level cache for embeddings (works across all MemoryService instances)
+_embedding_cache: dict[str, tuple] = {}
+_EMBEDDING_CACHE_MAX_SIZE = 5000
+
+
+def _get_embedding_cached(text: str, get_embedding_fn) -> tuple:
+    """Get embedding with module-level cache.
+
+    Args:
+        text: Text to embed
+        get_embedding_fn: Function to call if cache miss
+
+    Returns:
+        Tuple of embedding vector (for hashability in cache)
+    """
+    if text not in _embedding_cache:
+        # Evict oldest entries if cache is full
+        if len(_embedding_cache) >= _EMBEDDING_CACHE_MAX_SIZE:
+            # Remove ~10% of oldest entries
+            keys_to_remove = list(_embedding_cache.keys())[:_EMBEDDING_CACHE_MAX_SIZE // 10]
+            for key in keys_to_remove:
+                del _embedding_cache[key]
+        _embedding_cache[text] = tuple(get_embedding_fn(text))
+    return _embedding_cache[text]
+
+
+async def _get_embedding(self, text: str) -> list[float]:
+    """Get embedding with cache support - runs in thread pool to avoid blocking.
+
+    Args:
+        text: Text to embed
+
+    Returns:
+        Embedding vector as list
+    """
+    # Run sync embed function in thread pool to avoid blocking event loop
+    def sync_embed():
+        return self._get_embedding_model().embed(text)
+    return list(await asyncio.to_thread(
+        _get_embedding_cached, text, sync_embed
+    ))
 
     def _get_storage(self):
         """Lazily initialize Qdrant storage."""
@@ -185,8 +295,7 @@ class MemoryService:
         # Store in Qdrant for vector search
         try:
             storage = self._get_storage()
-            embedding_model = self._get_embedding_model()
-            vector = await asyncio.to_thread(embedding_model.embed, memory.content)  # Always use plaintext for embeddings
+            vector = await self._get_embedding(memory.content)
 
             await asyncio.to_thread(
                 storage.write,
@@ -333,10 +442,10 @@ class MemoryService:
         # Update in Qdrant
         try:
             storage = self._get_storage()
-            embedding_model = self._get_embedding_model()
-            vector = embedding_model.embed(memory_data["content"])
+            vector = await self._get_embedding(memory_data["content"])
 
-            storage.write(
+            await asyncio.to_thread(
+                storage.write,
                 vectors={[memory_id]: vector},
                 payloads=[
                     {
@@ -416,6 +525,8 @@ class MemoryService:
     ) -> MemorySearchResult:
         """Search memories using hybrid search (vector + BM25 with RRF).
 
+        Uses caching for repeated queries with same parameters.
+
         Args:
             search_query: Search query schema
 
@@ -424,6 +535,15 @@ class MemoryService:
         """
         query = search_query.query
         top_k = search_query.top_k
+
+        # Create cache key from search parameters
+        cache_key = f"{query}:{top_k}:{search_query.memory_type}:{search_query.agent_id}:{search_query.similarity_threshold}"
+
+        # Check cache first
+        cached_result = _search_cache.get(cache_key)
+        if cached_result is not None:
+            logger.debug(f"Cache hit for search: {query[:50]}...")
+            return cached_result
 
         # Vector search results
         vector_results = await self._vector_search(query, top_k * 2)
@@ -469,11 +589,16 @@ class MemoryService:
             f"Search for '{query}' returned {len(filtered)} results"
         )
 
-        return MemorySearchResult(
+        result = MemorySearchResult(
             memories=filtered[:top_k],
             total=len(filtered),
             query=query,
         )
+
+        # Cache the result
+        _search_cache.set(cache_key, result)
+
+        return result
 
     async def _vector_search(
         self, query: str, top_k: int
@@ -491,8 +616,7 @@ class MemoryService:
 
         try:
             storage = self._get_storage()
-            embedding_model = self._get_embedding_model()
-            query_vector = embedding_model.embed(query)
+            query_vector = await self._get_embedding(query)
 
             search_results = storage.query(
                 query_vector=query_vector,
@@ -514,7 +638,10 @@ class MemoryService:
     async def _bm25_search(
         self, query: str, top_k: int
     ) -> dict[str, float]:
-        """Perform BM25 keyword search.
+        """Perform BM25 keyword search with caching.
+
+        Uses cached BM25 index to avoid rebuilding on every query.
+        Index is rebuilt when memories change or after TTL expires.
 
         Args:
             query: Search query
@@ -523,6 +650,8 @@ class MemoryService:
         Returns:
             Dict mapping memory_id to BM25 score
         """
+        global _bm25_index_cache, _bm25_index_timestamp
+
         try:
             from rank_bm25 import BM25Okapi
         except ImportError:
@@ -532,21 +661,33 @@ class MemoryService:
         if not self._memories:
             return {}
 
-        # Tokenize all memory contents
-        corpus = []
-        memory_ids = []
+        # Check if BM25 index needs rebuild
+        current_time = time.time()
+        needs_rebuild = (
+            _bm25_index_cache is None
+            or current_time - _bm25_index_timestamp > _BM25_INDEX_TTL
+        )
 
-        for memory_id, memory_data in self._memories.items():
-            # Tokenize content
-            tokens = memory_data["content"].lower().split()
-            corpus.append(tokens)
-            memory_ids.append(memory_id)
+        if needs_rebuild:
+            # Tokenize all memory contents
+            corpus = []
+            memory_ids = []
 
-        if not corpus:
+            for memory_id, memory_data in self._memories.items():
+                # Tokenize content
+                tokens = memory_data["content"].lower().split()
+                corpus.append(tokens)
+                memory_ids.append(memory_id)
+
+            if corpus:
+                _bm25_index_cache = (BM25Okapi(corpus), memory_ids)
+                _bm25_index_timestamp = current_time
+
+        # Use cached index if available
+        if _bm25_index_cache is None:
             return {}
 
-        # Create BM25 index
-        bm25 = BM25Okapi(corpus)
+        bm25, memory_ids = _bm25_index_cache
 
         # Query
         query_tokens = query.lower().split()
@@ -1040,10 +1181,15 @@ class MemoryService:
 
 # Global memory service instance
 _memory_service: MemoryService | None = None
+_memory_service_lock = asyncio.Lock()
 
 
 def get_memory_service() -> MemoryService:
-    """Get the global memory service instance."""
+    """Get the global memory service instance (singleton).
+
+    Returns the same MemoryService instance for all calls to avoid
+    recreating expensive resources like embedding models and Qdrant connections.
+    """
     global _memory_service
     if _memory_service is None:
         _memory_service = MemoryService()

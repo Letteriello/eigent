@@ -17,7 +17,7 @@ import AppRoutes from '@/routers/index';
 import { stackClientApp } from '@/stack/client';
 import { StackProvider, StackTheme } from '@stackframe/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useBackgroundTaskProcessor } from './hooks/useBackgroundTaskProcessor';
@@ -42,16 +42,19 @@ function App() {
   // Execute triggered tasks automatically when WebSocket events are received
   useTriggerTaskExecutor();
 
-  useEffect(() => {
-    const handleShareCode = (event: any, share_token: string) => {
+  // Use stable callback references to ensure proper cleanup
+  const handleShareCode = useCallback(
+    (event: any, share_token: string) => {
       navigate({
         pathname: '/',
         search: `?share_token=${encodeURIComponent(share_token)}`,
       });
-    };
+    },
+    [navigate]
+  );
 
-    //  listen version update notification
-    const handleUpdateNotification = (data: {
+  const handleUpdateNotification = useCallback(
+    (data: {
       type: string;
       currentVersion: string;
       previousVersion: string;
@@ -60,23 +63,26 @@ function App() {
       console.log('receive version update notification:', data);
 
       if (data.type === 'version-update') {
-        // handle version update logic
         console.log(
           `version from ${data.previousVersion} to ${data.currentVersion}`
         );
         console.log(`update reason: ${data.reason}`);
         setInitState('carousel');
       }
-    };
+    },
+    [setInitState]
+  );
 
+  useEffect(() => {
     window.ipcRenderer?.on('auth-share-token-received', handleShareCode);
     window.electronAPI?.onUpdateNotification(handleUpdateNotification);
 
     return () => {
-      window.ipcRenderer?.off('auth-share-token-received', handleShareCode);
-      window.electronAPI?.removeAllListeners('update-notification');
+      // Restore original removeAllListeners - electronAPI doesn't have .off() method
+      window.ipcRenderer?.removeAllListeners('auth-share-token-received');
+      window.electronAPI?.removeAllListeners?.('update-notification');
     };
-  }, [navigate, setInitState]);
+  }, [handleShareCode, handleUpdateNotification]);
 
   // render wrapper
   const renderWrapper = (children: React.ReactNode) => {

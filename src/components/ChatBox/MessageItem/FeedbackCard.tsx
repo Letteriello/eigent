@@ -14,7 +14,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Check, Copy } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
@@ -29,7 +29,7 @@ interface FeedbackCardProps {
   className?: string;
 }
 
-export function FeedbackCard({
+export const FeedbackCard = memo(function FeedbackCard({
   id,
   title,
   content,
@@ -111,4 +111,4 @@ export function FeedbackCard({
       </div>
     </div>
   );
-}
+});

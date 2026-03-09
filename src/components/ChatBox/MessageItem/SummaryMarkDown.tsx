@@ -13,10 +13,10 @@
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
 import { isHtmlDocument } from '@/lib/htmlFontStyles';
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-export const SummaryMarkDown = ({
+export const SummaryMarkDown = memo(function SummaryMarkDown({
   content,
   speed = 15,
   onTyping,
@@ -26,7 +26,7 @@ export const SummaryMarkDown = ({
   speed?: number;
   onTyping?: () => void;
   enableTypewriter?: boolean;
-}) => {
+}) {
   const [displayedContent, setDisplayedContent] = useState('');
   const [_isTyping, setIsTyping] = useState(true);
 
@@ -141,4 +141,4 @@ export const SummaryMarkDown = ({
       </ReactMarkdown>
     </div>
   );
-};
+});

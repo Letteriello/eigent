@@ -182,16 +182,18 @@ class ListenChatAgent(ChatAgent):
             Tuple of (accumulated_content, total_tokens) via
             StopIteration value
         """
-        accumulated_content = ""
+        # Use list for O(1) append instead of string concatenation O(n)
+        accumulated_chunks: list[str] = []
         last_chunk = None
 
         try:
             for chunk in response_gen:
                 last_chunk = chunk
                 if chunk.msg and chunk.msg.content:
-                    accumulated_content += chunk.msg.content
+                    accumulated_chunks.append(chunk.msg.content)
                 yield chunk
         finally:
+            accumulated_content = "".join(accumulated_chunks)
             total_tokens = self._extract_tokens(last_chunk)
             self._send_agent_deactivate(accumulated_content, total_tokens)
 
@@ -206,17 +208,18 @@ class ListenChatAgent(ChatAgent):
         Yields:
             Each chunk from the original generator
         """
-        accumulated_content = ""
+        # Use list for O(1) append instead of string concatenation O(n)
+        accumulated_chunks: list[str] = []
         last_chunk = None
 
         try:
             async for chunk in response_gen:
                 last_chunk = chunk
                 if chunk.msg and chunk.msg.content:
-                    delta_content = chunk.msg.content
-                    accumulated_content += delta_content
+                    accumulated_chunks.append(chunk.msg.content)
                 yield chunk
         finally:
+            accumulated_content = "".join(accumulated_chunks)
             total_tokens = self._extract_tokens(last_chunk)
             self._send_agent_deactivate(accumulated_content, total_tokens)
 
@@ -432,7 +435,14 @@ class ListenChatAgent(ChatAgent):
         # even if they have __wrapped__
         if asyncio.iscoroutinefunction(tool.func):
             # For async functions, we need to use the async execution path
-            return asyncio.run(self._aexecute_tool(tool_call_request))
+            # Use ThreadPoolExecutor to avoid blocking the event loop
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    asyncio.run, self._aexecute_tool(tool_call_request)
+                )
+                return future.result()
 
         # Handle all sync tools ourselves to maintain ContextVar context
         args = tool_call_request.args

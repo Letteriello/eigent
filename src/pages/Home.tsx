@@ -15,13 +15,43 @@
 import ChatBox from '@/components/ChatBox';
 import Folder from '@/components/Folder';
 import UpdateElectron from '@/components/update';
-import Workflow from '@/components/WorkFlow';
 import useChatStoreAdapter from '@/hooks/useChatStoreAdapter';
 import { ChatTaskStatus } from '@/types/constants';
 import { ReactFlowProvider } from '@xyflow/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
+
+// Lazy load workspace components to reduce initial bundle size
+const Workflow = lazy(() =>
+  import('@/components/WorkFlow').then((m) => ({ default: m.default }))
+);
+const TerminalAgentWorkspace = lazy(() =>
+  import('@/components/TerminalAgentWorkspace').then((m) => ({
+    default: m.default,
+  }))
+);
+const BrowserAgentWorkspace = lazy(() =>
+  import('@/components/BrowserAgentWorkspace').then((m) => ({
+    default: m.default,
+  }))
+);
+
+// Skeleton fallback for lazy loaded components
+function WorkspaceSkeleton() {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <div className="h-32 w-32 animate-pulse rounded-lg bg-surface-tertiary" />
+    </div>
+  );
+}
 
 import { AddWorker } from '@/components/AddWorker';
 import {
@@ -41,8 +71,6 @@ import { Inbox, LayoutGrid, Plus, RefreshCw, Zap, ZapOff } from 'lucide-react';
 import Overview from './Project/Triggers';
 
 import BottomBar from '@/components/BottomBar';
-import BrowserAgentWorkspace from '@/components/BrowserAgentWorkspace';
-import TerminalAgentWorkspace from '@/components/TerminalAgentWorkspace';
 import { Popover, PopoverContent } from '@/components/ui/popover';
 import {
   ResizableHandle,
@@ -395,7 +423,9 @@ export default function Home() {
               <div className="relative flex h-full w-full flex-col">
                 <div className="pointer-events-none absolute inset-0 rounded-xl bg-transparent"></div>
                 <div className="relative z-10 h-full w-full">
-                  <Workflow taskAssigning={[]} />
+                  <Suspense fallback={<WorkspaceSkeleton />}>
+                    <Workflow taskAssigning={[]} />
+                  </Suspense>
                 </div>
               </div>
             </div>
@@ -408,7 +438,9 @@ export default function Home() {
               (agent) => agent.agent_id === activeWorkSpace
             )?.type === 'browser_agent' && (
               <div className="flex h-full w-full flex-1 duration-300 animate-in fade-in-0 slide-in-from-right-2">
-                <BrowserAgentWorkspace />
+                <Suspense fallback={<WorkspaceSkeleton />}>
+                  <BrowserAgentWorkspace />
+                </Suspense>
               </div>
             )}
             {activeWorkSpace === 'workflow' && (
@@ -417,7 +449,11 @@ export default function Home() {
                   {/*filter blur */}
                   <div className="pointer-events-none absolute inset-0 rounded-xl bg-transparent"></div>
                   <div className="relative z-10 h-full w-full">
-                    <Workflow taskAssigning={activeTask.taskAssigning || []} />
+                    <Suspense fallback={<WorkspaceSkeleton />}>
+                      <Workflow
+                        taskAssigning={activeTask.taskAssigning || []}
+                      />
+                    </Suspense>
                   </div>
                 </div>
               </div>
@@ -426,7 +462,9 @@ export default function Home() {
               (agent) => agent.agent_id === activeWorkSpace
             )?.type === 'developer_agent' && (
               <div className="flex h-full w-full flex-1">
-                <TerminalAgentWorkspace />
+                <Suspense fallback={<WorkspaceSkeleton />}>
+                  <TerminalAgentWorkspace />
+                </Suspense>
                 {/* <Terminal content={[]} /> */}
               </div>
             )}

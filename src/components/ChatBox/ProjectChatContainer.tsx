@@ -62,7 +62,10 @@ export const ProjectChatContainer: React.FC<ProjectChatContainerProps> = ({
     if (containerRef.current) {
       setTimeout(() => {
         // Double check containerRef is still valid before scrolling
-        if (containerRef.current) {
+        if (
+          containerRef.current &&
+          typeof containerRef.current.scrollTo === 'function'
+        ) {
           containerRef.current.scrollTo({
             top: containerRef.current.scrollHeight,
             behavior: 'smooth',

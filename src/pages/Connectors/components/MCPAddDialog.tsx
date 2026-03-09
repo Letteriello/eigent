@@ -19,11 +19,11 @@ import {
   DialogFooter,
   DialogHeader,
 } from '@/components/ui/dialog';
-import loader from '@monaco-editor/loader';
-import MonacoEditor from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+// Lazy load Monaco Editor - only loaded when dialog opens
+const MonacoEditor = lazy(() => import('@monaco-editor/react'));
 
 if (typeof globalThis !== 'undefined') {
   (globalThis as any).MonacoEnvironment = {
@@ -45,8 +45,6 @@ if (typeof globalThis !== 'undefined') {
     },
   };
 }
-
-loader.config({ monaco }); // put at the top of the MCPAddDialog component file
 
 interface MCPAddDialogProps {
   open: boolean;
@@ -129,23 +127,31 @@ export default function MCPAddDialog({
             </div>
           )}
           <div className="overflow-hidden rounded-xl border border-border-primary">
-            <MonacoEditor
-              height="300px"
-              width="100%"
-              language="json"
-              theme="vs-dark"
-              value={localJson}
-              onChange={(v) => {
-                setLocalJson(v ?? '');
-              }}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                scrollBeyondLastLine: false,
-                readOnly: installing,
-                automaticLayout: true,
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="flex h-[300px] items-center justify-center bg-[#1e1e1e]">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+                </div>
+              }
+            >
+              <MonacoEditor
+                height="300px"
+                width="100%"
+                language="json"
+                theme="vs-dark"
+                value={localJson}
+                onChange={(v) => {
+                  setLocalJson(v ?? '');
+                }}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  scrollBeyondLastLine: false,
+                  readOnly: installing,
+                  automaticLayout: true,
+                }}
+              />
+            </Suspense>
           </div>
         </DialogContentSection>
         <DialogFooter

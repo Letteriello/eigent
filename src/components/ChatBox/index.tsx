@@ -133,11 +133,12 @@ export default function ChatBox(): JSX.Element {
     };
   }, [checkModelConfig]);
 
-  // Task time tracking
-  const [taskTime, setTaskTime] = useState(
+  // Task time tracking - optimized with useRef to avoid re-renders
+  const taskTimeRef = useRef(
     chatStore?.getFormattedTaskTime(chatStore?.activeTaskId as string) ||
       '00:00'
   );
+  const [taskTime, setTaskTime] = useState(taskTimeRef.current);
 
   const [_hasSubTask, setHasSubTask] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -152,7 +153,12 @@ export default function ChatBox(): JSX.Element {
     if (!chatStore?.activeTaskId) return;
     const interval = setInterval(() => {
       if (chatStore.activeTaskId) {
-        setTaskTime(chatStore.getFormattedTaskTime(chatStore.activeTaskId));
+        const newTime = chatStore.getFormattedTaskTime(chatStore.activeTaskId);
+        // Only trigger re-render if time actually changed
+        if (newTime !== taskTimeRef.current) {
+          taskTimeRef.current = newTime;
+          setTaskTime(newTime);
+        }
       }
     }, 500);
     return () => clearInterval(interval);
@@ -595,7 +601,11 @@ export default function ChatBox(): JSX.Element {
     if (!chatStore?.activeTaskId) return;
     const interval = setInterval(() => {
       if (chatStore.activeTaskId) {
-        setTaskTime(chatStore.getFormattedTaskTime(chatStore.activeTaskId));
+        const newTime = chatStore.getFormattedTaskTime(chatStore.activeTaskId);
+        if (newTime !== taskTimeRef.current) {
+          taskTimeRef.current = newTime;
+          setTaskTime(newTime);
+        }
       }
     }, 500);
     return () => clearInterval(interval);

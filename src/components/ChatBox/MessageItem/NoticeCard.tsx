@@ -15,9 +15,9 @@
 import { Button } from '@/components/ui/button';
 import useChatStoreAdapter from '@/hooks/useChatStoreAdapter';
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
-export function NoticeCard() {
+export const NoticeCard = memo(function NoticeCard() {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -106,4 +106,4 @@ export function NoticeCard() {
       </div>
     </div>
   );
-}
+});

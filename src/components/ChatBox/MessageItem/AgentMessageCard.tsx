@@ -13,7 +13,7 @@
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
 import { Check, Copy, FileText } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Button } from '../../ui/button';
@@ -33,7 +33,7 @@ interface AgentMessageCardProps {
 // global Map to track completed typewriter effect content hash
 const completedTypewriterHashes = new Map<string, boolean>();
 
-export function AgentMessageCard({
+export const AgentMessageCard = memo(function AgentMessageCard({
   id,
   content,
   typewriter = true,
@@ -123,4 +123,4 @@ export function AgentMessageCard({
       )}
     </div>
   );
-}
+});

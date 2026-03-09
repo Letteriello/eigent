@@ -28,7 +28,7 @@ import {
   Plus,
   TriangleAlert,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 interface TaskCardProps {
   taskInfo: any[];
@@ -45,7 +45,7 @@ interface TaskCardProps {
   chatId?: string;
 }
 
-export function TaskCard({
+export const TaskCard = memo(function TaskCard({
   taskInfo,
   taskType,
   taskRunning,
@@ -483,4 +483,4 @@ export function TaskCard({
       </div>
     </div>
   );
-}
+});

@@ -53,6 +53,36 @@ export default function TerminalComponent({
   const promptText = 'Eigent:~$ '; // prompt text
   const isInitialized = useRef<boolean>(false); // initialization identifier, prevent duplicate initialization
 
+  // Refs for cleanup
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const windowResizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const taskSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced fit function using refs directly (avoids hook-in-hook issue)
+  const debouncedFit = useCallback(() => {
+    if (resizeTimeoutRef.current) {
+      clearTimeout(resizeTimeoutRef.current);
+    }
+    resizeTimeoutRef.current = setTimeout(() => {
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
+    }, 300);
+  }, []);
+
+  // Debounced window resize function using refs directly
+  const debouncedWindowFit = useCallback(() => {
+    if (windowResizeTimeoutRef.current) {
+      clearTimeout(windowResizeTimeoutRef.current);
+    }
+    windowResizeTimeoutRef.current = setTimeout(() => {
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
+    }, 300);
+  }, []);
+
   // synchronize state to ref, for event handling
   useEffect(() => {
     currentLineRef.current = currentLine;
@@ -123,7 +153,6 @@ export default function TerminalComponent({
   // initialize xterm terminal
   useEffect(() => {
     if (!terminalRef.current || isInitialized.current) return;
-    console.log('isInitialized.current', isInitialized.current);
     // mark as initialized
     isInitialized.current = true;
 
@@ -162,7 +191,7 @@ export default function TerminalComponent({
     terminal.open(terminalRef.current);
 
     // wait for layout to stabilize and adapt size, then write content
-    setTimeout(() => {
+    initTimeoutRef.current = setTimeout(() => {
       fitAddon.fit(); // adapt container size
 
       // only show welcome information when needed
@@ -186,37 +215,42 @@ export default function TerminalComponent({
 
     // clean up function
     return () => {
+      // Clear all timeouts
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      if (windowResizeTimeoutRef.current) {
+        clearTimeout(windowResizeTimeoutRef.current);
+      }
+      if (taskSwitchTimeoutRef.current) {
+        clearTimeout(taskSwitchTimeoutRef.current);
+      }
       terminal.dispose(); // destroy terminal instance
       xtermRef.current = null;
       isInitialized.current = false;
     };
   }, [handleKeyInput, promptText, showWelcome, instanceId]);
 
-  // listen to container size change
+  // listen to container size change with debounced resize handler
   useEffect(() => {
     if (!terminalContainerRef.current || !fitAddonRef.current) return;
 
-    // use ResizeObserver to listen to container size change
+    // use ResizeObserver to listen to container size change with debounce
     const resizeObserver = new ResizeObserver((entries) => {
       for (const _entry of entries) {
-        // delay execution of fit to ensure layout stability
-        setTimeout(() => {
-          if (fitAddonRef.current) {
-            fitAddonRef.current.fit();
-          }
-        }, 100);
+        // Use debounced fit instead of setTimeout
+        debouncedFit();
       }
     });
 
     resizeObserver.observe(terminalContainerRef.current);
 
-    // listen to window size change
+    // listen to window size change with debounce
     const handleResize = () => {
-      setTimeout(() => {
-        if (fitAddonRef.current) {
-          fitAddonRef.current.fit();
-        }
-      }, 150);
+      debouncedWindowFit();
     };
     window.addEventListener('resize', handleResize);
 
@@ -224,8 +258,15 @@ export default function TerminalComponent({
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
+      // Clear debounce timeouts on cleanup
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      if (windowResizeTimeoutRef.current) {
+        clearTimeout(windowResizeTimeoutRef.current);
+      }
     };
-  }, []);
+  }, [debouncedFit, debouncedWindowFit]);
 
   // listen to terminal data change and write to xterm
   useEffect(() => {
@@ -236,7 +277,6 @@ export default function TerminalComponent({
     // check if it is the case of component re-initialization
     // if lastTerminalLength is 0 but content has data, it means re-initialization
     if (lastTerminalLength.current === 0 && currentLength > 0) {
-      console.log('component re-initialization, skip history data write');
       lastTerminalLength.current = currentLength;
       return;
     }
@@ -244,8 +284,6 @@ export default function TerminalComponent({
     // only process new data (incremental update)
     if (currentLength > lastTerminalLength.current) {
       const newData = terminalData.slice(lastTerminalLength.current);
-
-      console.log('newData', newData);
       newData.forEach((item) => {
         if (!xtermRef.current) return;
 
@@ -301,8 +339,13 @@ export default function TerminalComponent({
     setCurrentLine('');
     setCursorPos(0);
 
+    // Clear previous timeout if exists
+    if (taskSwitchTimeoutRef.current) {
+      clearTimeout(taskSwitchTimeoutRef.current);
+    }
+
     // delay re-initialization
-    setTimeout(() => {
+    taskSwitchTimeoutRef.current = setTimeout(() => {
       if (!xtermRef.current || !fitAddonRef.current) return;
 
       // re-adapt size
@@ -344,7 +387,14 @@ export default function TerminalComponent({
       // show prompt
       xtermRef.current.write(promptText);
     }, 200);
-  }, [chatStore.activeTaskId, showWelcome, instanceId, content]);
+
+    // Cleanup timeout on unmount or dependency change
+    return () => {
+      if (taskSwitchTimeoutRef.current) {
+        clearTimeout(taskSwitchTimeoutRef.current);
+      }
+    };
+  }, [chatStore.activeTaskId, showWelcome, instanceId, content, promptText]);
 
   if (!chatStore) {
     return <div>Loading...</div>;

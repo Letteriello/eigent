@@ -47,6 +47,75 @@ const nodeTypes: NodeTypes = {
 
 const VIEWPORT_ANIMATION_DURATION = 500;
 
+// Moved outside component to prevent recreation on each render
+const BASE_WORKER: Agent[] = [
+  {
+    tasks: [],
+    agent_id: 'developer_agent',
+    tools: [
+      'Human Toolkit',
+      'Terminal Toolkit',
+      'Note Taking Toolkit',
+      'Web Deploy Toolkit',
+    ],
+    name: 'Developer Agent',
+    type: 'developer_agent',
+    log: [],
+    activeWebviewIds: [],
+  },
+  {
+    tasks: [],
+    agent_id: 'browser_agent',
+    name: 'Browser Agent',
+    type: 'browser_agent',
+    tools: [
+      'Search Toolkit',
+      'Browser Toolkit',
+      'Human Toolkit',
+      'Note Taking Toolkit',
+      'Terminal Toolkit',
+    ],
+    log: [],
+    activeWebviewIds: [],
+  },
+  {
+    tasks: [],
+    tools: [
+      'Video Downloader Toolkit',
+      'Audio Analysis Toolkit',
+      'Screenshot Toolkit',
+      'Open AI Image Toolkit',
+      'Human Toolkit',
+      'Terminal Toolkit',
+      'Note Taking Toolkit',
+      'Search Toolkit',
+    ],
+    agent_id: 'multi_modal_agent',
+    name: 'Multi Modal Agent',
+    type: 'multi_modal_agent',
+    log: [],
+    activeWebviewIds: [],
+  },
+  {
+    tasks: [],
+    agent_id: 'document_agent',
+    name: 'Document Agent',
+    tools: [
+      'File Write Toolkit',
+      'Pptx Toolkit',
+      'Human Toolkit',
+      'Mark It Down Toolkit',
+      'Excel Toolkit',
+      'Note Taking Toolkit',
+      'Terminal Toolkit',
+      'Google Drive Mcp Toolkit',
+    ],
+    type: 'document_agent',
+    log: [],
+    activeWebviewIds: [],
+  },
+];
+
 export default function Workflow({
   taskAssigning,
   onMoveViewport,
@@ -86,84 +155,7 @@ export default function Workflow({
     [minViewportX]
   );
 
-  const baseWorker: Agent[] = useMemo(
-    () => [
-      {
-        tasks: [],
-        agent_id: 'developer_agent',
-        tools: [
-          'Human Toolkit',
-          'Terminal Toolkit',
-          'Note Taking Toolkit',
-          'Web Deploy Toolkit',
-        ],
-        name: 'Developer Agent',
-        type: 'developer_agent',
-        log: [],
-        activeWebviewIds: [],
-      },
-      {
-        tasks: [],
-        agent_id: 'browser_agent',
-        name: 'Browser Agent',
-        type: 'browser_agent',
-        tools: [
-          'Search Toolkit',
-          'Browser Toolkit',
-          'Human Toolkit',
-          'Note Taking Toolkit',
-          'Terminal Toolkit',
-        ],
-        log: [],
-        activeWebviewIds: [],
-      },
-      {
-        tasks: [],
-        tools: [
-          'Video Downloader Toolkit',
-          'Audio Analysis Toolkit',
-          'Screenshot Toolkit',
-          'Open AI Image Toolkit',
-          'Human Toolkit',
-          'Terminal Toolkit',
-          'Note Taking Toolkit',
-          'Search Toolkit',
-        ],
-        agent_id: 'multi_modal_agent',
-        name: 'Multi Modal Agent',
-        type: 'multi_modal_agent',
-        log: [],
-        activeWebviewIds: [],
-      },
-      // {
-      // 	tasks: [],
-      // 	agent_id: "social_media_agent",
-      // 	name: "Social Media Agent",
-      // 	type: "social_media_agent",
-      // 	log: [],
-      // 	activeWebviewIds: [],
-      // },
-      {
-        tasks: [],
-        agent_id: 'document_agent',
-        name: 'Document Agent',
-        tools: [
-          'File Write Toolkit',
-          'Pptx Toolkit',
-          'Human Toolkit',
-          'Mark It Down Toolkit',
-          'Excel Toolkit',
-          'Note Taking Toolkit',
-          'Terminal Toolkit',
-          'Google Drive Mcp Toolkit',
-        ],
-        type: 'document_agent',
-        log: [],
-        activeWebviewIds: [],
-      },
-    ],
-    []
-  );
+  // Removed useMemo - using BASE_WORKER constant outside component
 
   // update ref value
   useEffect(() => {
@@ -265,12 +257,12 @@ export default function Workflow({
     [setNodes, isEditMode]
   );
 
+  // Separated useEffect: Update nodes when taskAssigning or workerList changes
   useEffect(() => {
-    // console.log("workerList	", workerList);
     setNodes((prev: CustomNode[]) => {
       if (!taskAssigning) return prev;
-      // Agents not yet in taskAssigning (from baseWorker or workerList)
-      const base = [...baseWorker, ...workerList].filter(
+      // Agents not yet in taskAssigning (from BASE_WORKER or workerList)
+      const base = [...BASE_WORKER, ...workerList].filter(
         (worker) => !taskAssigning.find((agent) => agent.type === worker.type)
       );
       let targetData = [...prev];
@@ -320,18 +312,14 @@ export default function Workflow({
       });
       return targetData;
     });
+  }, [taskAssigning, workerList, handleExpandChange, isEditMode, setNodes]);
+
+  // Separated useEffect: Reset positions when exiting edit mode
+  useEffect(() => {
     if (!isEditMode) {
       reSetNodePosition();
     }
-  }, [
-    taskAssigning,
-    isEditMode,
-    workerList,
-    baseWorker,
-    handleExpandChange,
-    reSetNodePosition,
-    setNodes,
-  ]);
+  }, [isEditMode, reSetNodePosition]);
 
   useEffect(() => {
     const updateWidth = () => {

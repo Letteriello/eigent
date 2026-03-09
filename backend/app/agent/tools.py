@@ -47,6 +47,19 @@ from app.model.chat import McpServers
 logger = logging.getLogger(__name__)
 
 
+# Cache for toolkit instances per project (api_task_id)
+# Key: (toolkit_name, api_task_id), Value: AbstractToolkit instance
+_toolkit_cache: dict[tuple[str, str], AbstractToolkit] = {}
+
+
+def _get_cached_toolkit(toolkit_class: type, tool_name: str, api_task_id: str) -> AbstractToolkit:
+    """Get or create a cached toolkit instance for the given task."""
+    cache_key = (tool_name, api_task_id)
+    if cache_key not in _toolkit_cache:
+        _toolkit_cache[cache_key] = toolkit_class(api_task_id)
+    return _toolkit_cache[cache_key]
+
+
 async def get_toolkits(tools: list[str], agent_name: str, api_task_id: str):
     logger.info(
         f"Getting toolkits for agent: {agent_name}, "
@@ -79,7 +92,9 @@ async def get_toolkits(tools: list[str], agent_name: str, api_task_id: str):
     res = []
     for item in tools:
         if item in toolkits:
-            toolkit: AbstractToolkit = toolkits[item]
+            toolkit_class = toolkits[item]
+            # Use cached toolkit instance instead of creating new one each time
+            toolkit = _get_cached_toolkit(toolkit_class, item, api_task_id)
             toolkit.agent_name = agent_name
             toolkit_tools = toolkit.get_can_use_tools(api_task_id)
             toolkit_tools = (

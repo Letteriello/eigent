@@ -66,9 +66,14 @@ export default defineConfig(({ command, mode }) => {
     resolve: {
       alias: {
         '@': path.join(__dirname, 'src'),
+        'motion/react': path.join(
+          __dirname,
+          'node_modules/motion/dist/es/react.mjs'
+        ),
       },
     },
     optimizeDeps: {
+      include: ['framer-motion', 'motion', 'motion/react'],
       exclude: ['@stackframe/react'],
       force: true,
     },
@@ -81,6 +86,10 @@ export default defineConfig(({ command, mode }) => {
       sourcemap: sourcemap,
       // PERFORMANCE: Budget limits to prevent bundle bloat (in kB)
       chunkSizeWarningLimit: 500,
+      // PERFORMANCE: Enable module preload for faster loading
+      modulePreload: {
+        polyfill: true,
+      },
       // PERFORMANCE: Enable rollup chunking for better caching
       rollupOptions: {
         output: {
@@ -92,6 +101,8 @@ export default defineConfig(({ command, mode }) => {
           // PERFORMANCE: Use const functions for smaller output
           generatedCode: {
             constFunctions: true,
+            arrowFunctions: true,
+            objectShorthand: true,
           },
         },
       },

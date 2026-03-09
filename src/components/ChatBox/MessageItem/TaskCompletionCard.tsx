@@ -16,17 +16,17 @@ import { TriggerDialog } from '@/components/Trigger/TriggerDialog';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
-import React, { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 interface TaskCompletionCardProps {
   taskPrompt?: string;
   onRerun?: () => void;
 }
 
-export const TaskCompletionCard: React.FC<TaskCompletionCardProps> = ({
+export const TaskCompletionCard = memo(function TaskCompletionCard({
   taskPrompt = '',
   onRerun,
-}) => {
+}: TaskCompletionCardProps) {
   const { t } = useTranslation();
   const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
 
@@ -71,6 +71,4 @@ export const TaskCompletionCard: React.FC<TaskCompletionCardProps> = ({
       />
     </>
   );
-};
-
-export default TaskCompletionCard;
+});
