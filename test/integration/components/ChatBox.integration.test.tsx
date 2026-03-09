@@ -19,6 +19,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,8 +58,19 @@ Object.defineProperty(window, 'electronAPI', {
   writable: true,
 });
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      gcTime: 0,
+    },
+  },
+});
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <BrowserRouter>{children}</BrowserRouter>
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>{children}</BrowserRouter>
+  </QueryClientProvider>
 );
 
 describe('ChatBox Integration Tests - Different ChatStore Configurations', () => {

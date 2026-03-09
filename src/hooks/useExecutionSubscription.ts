@@ -142,14 +142,14 @@ export function useExecutionSubscription(enabled: boolean = true) {
   const setWsConnectionStatusRef = useRef(setWsConnectionStatus);
   const setLastPongTimestampRef = useRef(setLastPongTimestamp);
 
-  // Update refs on every render
+  // Update refs when values change - prevents infinite loop by using stable dependencies
   useEffect(() => {
     triggersRef.current = triggers;
     addLogRef.current = addLog;
     emitWebSocketEventRef.current = emitWebSocketEvent;
     setWsConnectionStatusRef.current = setWsConnectionStatus;
     setLastPongTimestampRef.current = setLastPongTimestamp;
-  });
+  }, [triggers, addLog, emitWebSocketEvent, setWsConnectionStatus, setLastPongTimestamp]);
 
   // Helper to start ping interval
   const startPingInterval = useCallback((ws: WebSocket) => {

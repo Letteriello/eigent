@@ -102,7 +102,7 @@ class SearchToolkit(BaseSearchToolkit, AbstractToolkit):
         number_of_result_pages=10,
         start_page=1: f"with query '{query}', {search_type} type, {number_of_result_pages} result pages starting from page {start_page}",
     )
-    def search_google(
+    async def search_google(
         self,
         query: str,
         search_type: str = "web",
@@ -141,11 +141,11 @@ class SearchToolkit(BaseSearchToolkit, AbstractToolkit):
             logger.info(
                 "Using cloud Google Search (no user configuration found)"
             )
-            return self.cloud_search_google(
+            return await self.cloud_search_google(
                 query, search_type, number_of_result_pages, start_page
             )
 
-    def cloud_search_google(
+    async def cloud_search_google(
         self,
         query: str,
         search_type: str = "web",
@@ -153,15 +153,16 @@ class SearchToolkit(BaseSearchToolkit, AbstractToolkit):
         start_page: int = 1,
     ):
         url = env_not_empty("SERVER_URL")
-        res = httpx.get(
-            url + "/proxy/google",
-            params={
-                "query": query,
-                "search_type": search_type,
-                "number_of_result_pages": number_of_result_pages,
-                "start_page": start_page,
-            },
-            headers={"api-key": env_not_empty("cloud_api_key")},
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                url + "/proxy/google",
+                params={
+                    "query": query,
+                    "search_type": search_type,
+                    "number_of_result_pages": number_of_result_pages,
+                    "start_page": start_page,
+                },
+                headers={"api-key": env_not_empty("cloud_api_key")},
         )
         return res.json()
 

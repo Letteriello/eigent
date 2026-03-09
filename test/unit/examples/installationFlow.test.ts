@@ -12,9 +12,15 @@
 // limitations under the License.
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
+import { vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useInstallationStore } from '../../../src/store/installationStore';
+
+// Mock waitForBackendReady from http API
+vi.mock('../../../src/api/http', () => ({
+  waitForBackendReady: vi.fn().mockResolvedValue(true),
+}));
 import {
   createTestEnvironment,
   waitForInstallationState,
@@ -162,7 +168,7 @@ describe('Installation Flow Examples', () => {
       });
 
       // Should complete successfully
-      expect(result.current.state).toBe('completed');
+      expect(result.current.state).toBe('waiting-backend');
     });
   });
 
@@ -217,7 +223,7 @@ describe('Installation Flow Examples', () => {
         result.current.setSuccess();
       });
 
-      expect(result.current.state).toBe('completed');
+      expect(result.current.state).toBe('waiting-backend');
       expect(result.current.progress).toBe(100);
     });
 
@@ -254,8 +260,16 @@ describe('Installation Flow Examples', () => {
         await result.current.performInstallation();
       });
 
+      // After installation completes, it enters waiting-backend state
+      await waitForInstallationState(() => result.current, 'waiting-backend', 1000);
+      expect(result.current.state).toBe('waiting-backend');
+
+      // Need to call completeSetup to transition to completed
+      act(() => {
+        result.current.completeSetup();
+      });
+
       // Should complete successfully
-      await waitForInstallationState(() => result.current, 'completed', 1000);
       expect(result.current.state).toBe('completed');
     });
 
@@ -302,10 +316,10 @@ describe('Installation Flow Examples', () => {
       await testEnv.simulate.successfulInstallation(50);
 
       // Wait for completion
-      await waitForInstallationState(() => result.current, 'completed', 1000);
+      await waitForInstallationState(() => result.current, 'waiting-backend', 1000);
       console.log('State after success installation, ', result.current);
 
-      expect(result.current.state).toBe('completed');
+      expect(result.current.state).toBe('waiting-backend');
       expect(result.current.logs.length).toBeGreaterThan(0);
     });
 
@@ -368,8 +382,8 @@ describe('Installation Flow Examples', () => {
       await testEnv.simulate.successfulInstallation(50);
 
       // Should complete successfully
-      await waitForInstallationState(() => result.current, 'completed', 1000);
-      expect(result.current.state).toBe('completed');
+      await waitForInstallationState(() => result.current, 'waiting-backend', 1000);
+      expect(result.current.state).toBe('waiting-backend');
     });
   });
 

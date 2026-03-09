@@ -14,7 +14,7 @@
 
 import { Textarea } from '@/components/ui/textarea';
 import { Check, CircleDashed, PenLine, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../ui/button';
 
@@ -29,7 +29,7 @@ interface TaskItemProps {
   onDelete: () => void;
 }
 
-export function TaskItem({
+export const TaskItem = memo(function TaskItem({
   taskInfo,
   taskIndex,
   onUpdate,
@@ -143,4 +143,4 @@ export function TaskItem({
       </div>
     </div>
   );
-}
+});

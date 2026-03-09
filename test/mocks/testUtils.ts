@@ -252,6 +252,11 @@ export function createTestEnvironment() {
       },
     },
 
+    // Simulation utilities
+    simulateBackendReady: (success = true, port = 8000) => {
+      electronAPI.simulateBackendReady(success, port);
+    },
+
     // Reset everything
     reset: () => {
       electronAPI.reset();

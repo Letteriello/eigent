@@ -51,7 +51,7 @@ export default function SearchInput({
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [userExpanded, setUserExpanded] = useState(false);
-  const isExpanded = userExpanded || value.length > 0;
+  const isExpanded = userExpanded || (value?.length ?? 0) > 0;
 
   const expand = useCallback(() => {
     setUserExpanded(true);
@@ -133,7 +133,7 @@ export default function SearchInput({
                 onChange={onChange}
                 placeholder={place}
                 onBlur={() => {
-                  if (value.length === 0) setUserExpanded(false);
+                  if ((value?.length ?? 0) === 0) setUserExpanded(false);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

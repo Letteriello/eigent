@@ -300,6 +300,17 @@ export function createStoreProfiler<T extends object>(
         leaks: leaks.suspectedLeaks,
       };
     },
+
+    /**
+     * Cleanup and release all stored data
+     * Call this when the profiler is no longer needed to prevent memory leaks
+     */
+    dispose() {
+      snapshots.length = 0;
+      updateTimes.length = 0;
+      updateCount = 0;
+      lastUpdateTime = Date.now();
+    },
   };
 }
 
@@ -393,15 +404,16 @@ export function createMemoryMonitorHook<T extends object>(
 ) {
   return function useStoreMemory() {
     const state = useStore((s) => s as T);
+    const stateRecord = state as Record<string, unknown>;
 
     return {
       storeName,
       stateSize: estimateSize(state),
-      keys: Object.keys(state),
+      keys: Object.keys(stateRecord),
       keySizes: Object.fromEntries(
-        Object.keys(state).map((k) => [
+        Object.keys(stateRecord).map((k) => [
           k,
-          estimateSize((state as Record<string, unknown>)[k]),
+          estimateSize(stateRecord[k]),
         ])
       ),
     };

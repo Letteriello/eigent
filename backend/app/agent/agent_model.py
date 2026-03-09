@@ -141,7 +141,7 @@ def agent_model(
         api_key=effective_config["api_key"],
         url=effective_config["api_url"],
         model_config_dict=model_config or None,
-        timeout=600,  # 10 minutes
+        timeout=180,  # 3 minutes - reduced from 10 for faster failure detection
         **init_params,
     )
 

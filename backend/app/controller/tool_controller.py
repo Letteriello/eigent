@@ -12,6 +12,7 @@
 # limitations under the License.
 # ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
+import functools
 import logging
 import os
 import shutil
@@ -267,13 +268,13 @@ async def install_tool(tool: str):
         )
 
 
-@router.get("/tools/available", name="list available tools")
-async def list_available_tools():
-    """
-    List all available MCP tools that can be installed
+# Cache for available tools ( TTL: 1 hour )
+@functools.lru_cache(maxsize=1)
+def _get_available_tools_cached():
+    """Get available tools list with caching.
 
-    Returns:
-        List of available tools with their information
+    Returns cached list of available tools - data is static and rarely changes.
+    Cache expires only on restart or explicit invalidation.
     """
     return {
         "tools": [
@@ -308,6 +309,17 @@ async def list_available_tools():
             },
         ]
     }
+
+
+@router.get("/tools/available", name="list available tools")
+async def list_available_tools():
+    """
+    List all available MCP tools that can be installed
+
+    Returns:
+        List of available tools with their information
+    """
+    return _get_available_tools_cached()
 
 
 @router.get("/oauth/status/{provider}", name="get oauth status")

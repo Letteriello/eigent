@@ -43,6 +43,7 @@ describe('useInstallationSetup Hook', () => {
       addLog: vi.fn(),
       setSuccess: vi.fn(),
       setError: vi.fn(),
+      setNeedsBackendRestart: vi.fn(),
     };
 
     // Mock auth store
