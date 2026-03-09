@@ -40,9 +40,10 @@ export default function MemorySummary({ memory }: MemorySummaryProps) {
 
   const [expanded, setExpanded] = useState(false);
 
-  const rawSummary = getSummary(memory.id) as any;
-  const summary: MemorySummaryType = rawSummary as MemorySummaryType;
+  const rawSummary = getSummary(memory.id) as MemorySummaryType;
+  const summary = rawSummary;
   const isSummarizing = summarizationStatus === 'summarizing';
+  const summaryContent = summary ? String(summary.content) : '';
 
   const handleSummarize = async () => {
     await summarizeMemory(memory.id);
@@ -125,7 +126,7 @@ export default function MemorySummary({ memory }: MemorySummaryProps) {
 
             {/* Summary Content */}
             <p className="text-sm text-gray-700 dark:text-gray-300">
-              {String(summary.content)}
+              {summaryContent}
             </p>
 
             {/* Generated At */}

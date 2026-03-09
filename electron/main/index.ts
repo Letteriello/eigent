@@ -2308,6 +2308,94 @@ function registerIpcHandlers() {
     }
   });
 
+  // ==================== memory persistence handlers ====================
+  const MEMORIES_DIR = path.join(userData, 'memories');
+  const MEMORIES_FILE = path.join(MEMORIES_DIR, 'memories.json');
+  const BACKUPS_DIR = path.join(MEMORIES_DIR, 'backups');
+  const MAX_BACKUPS = 5;
+
+  // Ensure memories directory exists
+  if (!fs.existsSync(MEMORIES_DIR)) {
+    fs.mkdirSync(MEMORIES_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(BACKUPS_DIR)) {
+    fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+  }
+
+  ipcMain.handle('memory:save', async (_, memories: unknown[]) => {
+    try {
+      // Create backup before saving
+      if (fs.existsSync(MEMORIES_FILE)) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupPath = path.join(BACKUPS_DIR, `memories-${timestamp}.json`);
+        fs.copyFileSync(MEMORIES_FILE, backupPath);
+
+        // Clean old backups (keep only MAX_BACKUPS)
+        const backups = fs.readdirSync(BACKUPS_DIR)
+          .filter(f => f.startsWith('memories-') && f.endsWith('.json'))
+          .sort()
+          .reverse();
+        for (const backup of backups.slice(MAX_BACKUPS)) {
+          fs.unlinkSync(path.join(BACKUPS_DIR, backup));
+        }
+      }
+
+      fs.writeFileSync(MEMORIES_FILE, JSON.stringify(memories, null, 2), 'utf-8');
+      log.info(`[MEMORY] Saved ${memories.length} memories to ${MEMORIES_FILE}`);
+      return { success: true };
+    } catch (error) {
+      log.error(`[MEMORY] Failed to save memories: ${error}`);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('memory:load', async () => {
+    try {
+      if (fs.existsSync(MEMORIES_FILE)) {
+        const data = fs.readFileSync(MEMORIES_FILE, 'utf-8');
+        const memories = JSON.parse(data);
+        log.info(`[MEMORY] Loaded ${memories.length} memories from ${MEMORIES_FILE}`);
+        return { success: true, memories };
+      }
+      return { success: true, memories: [] };
+    } catch (error) {
+      log.error(`[MEMORY] Failed to load memories: ${error}`);
+      return { success: false, error: (error as Error).message, memories: [] };
+    }
+  });
+
+  ipcMain.handle('memory:get-stats', async () => {
+    try {
+      let totalMemories = 0;
+      let lastSaved = null;
+
+      if (fs.existsSync(MEMORIES_FILE)) {
+        const data = fs.readFileSync(MEMORIES_FILE, 'utf-8');
+        const memories = JSON.parse(data);
+        totalMemories = memories.length;
+        const stats = fs.statSync(MEMORIES_FILE);
+        lastSaved = stats.mtime.toISOString();
+      }
+
+      const backups = fs.existsSync(BACKUPS_DIR)
+        ? fs.readdirSync(BACKUPS_DIR).filter(f => f.endsWith('.json')).length
+        : 0;
+
+      return {
+        success: true,
+        stats: {
+          totalMemories,
+          lastSaved,
+          backupCount: backups,
+          storagePath: MEMORIES_FILE,
+        }
+      };
+    } catch (error) {
+      log.error(`[MEMORY] Failed to get stats: ${error}`);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
   // ==================== register update related handler ====================
   registerUpdateIpcHandlers();
 }

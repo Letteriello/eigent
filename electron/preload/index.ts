@@ -201,6 +201,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('skill-config-update', userId, skillName, skillConfig),
   skillConfigDelete: (userId: string, skillName: string) =>
     ipcRenderer.invoke('skill-config-delete', userId, skillName),
+
+  // Memory persistence
+  saveMemories: (memories: unknown[]) =>
+    ipcRenderer.invoke('memory:save', memories),
+  loadMemories: () =>
+    ipcRenderer.invoke('memory:load'),
+  getMemoryStats: () =>
+    ipcRenderer.invoke('memory:get-stats'),
 });
 
 // --------- Preload scripts loading ---------

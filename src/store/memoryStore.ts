@@ -13,9 +13,11 @@
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { shallow } from 'zustand/shallow';
 
 export type MemoryType = 'fact' | 'preference' | 'context' | 'learned';
+
+export type ImportanceSource = 'auto' | 'manual';
 
 export interface Memory {
   id: string;
@@ -25,6 +27,8 @@ export interface Memory {
   agent_id: string | null;
   session_id: string | null;
   importance: number;
+  importance_source?: ImportanceSource;
+  last_recalled_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -92,53 +96,16 @@ interface MemoryState {
   // Summary actions
   summarizeMemory: (memoryId: string) => Promise<MemorySummary | null>;
   getSummary: (memoryId: string) => MemorySummary | null;
+
+  // Backup actions
+  exportMemories: () => Promise<string | null>;
+  importMemories: (jsonData: string) => Promise<number>;
 }
 
 const API_BASE = '/api/memory';
 
-// Maximum memories to persist in localStorage to prevent unbounded growth
-const MAX_PERSISTED_MEMORIES = 1000;
-// Maximum summaries to persist in localStorage
-const MAX_PERSISTED_SUMMARIES = 500;
-
-/**
- * Trim memories array to maximum size, keeping most recent entries
- */
-function trimMemories(memories: Memory[]): Memory[] {
-  if (memories.length > MAX_PERSISTED_MEMORIES) {
-    console.warn(
-      `[MemoryStore] Trimming memories from ${memories.length} to ${MAX_PERSISTED_MEMORIES}`
-    );
-    return memories.slice(0, MAX_PERSISTED_MEMORIES);
-  }
-  return memories;
-}
-
-/**
- * Trim summaries object to maximum size, keeping most recent entries
- */
-function trimSummaries(
-  summaries: Record<string, MemorySummary>
-): Record<string, MemorySummary> {
-  const entries = Object.entries(summaries);
-  if (entries.length > MAX_PERSISTED_SUMMARIES) {
-    console.warn(
-      `[MemoryStore] Trimming summaries from ${entries.length} to ${MAX_PERSISTED_SUMMARIES}`
-    );
-    // Sort by generatedAt (most recent first) and keep top N
-    const sorted = entries.sort((a, b) => {
-      const dateA = new Date(a[1].generatedAt).getTime();
-      const dateB = new Date(b[1].generatedAt).getTime();
-      return dateB - dateA;
-    });
-    return Object.fromEntries(sorted.slice(0, MAX_PERSISTED_SUMMARIES));
-  }
-  return summaries;
-}
-
 export const useMemoryStore = create<MemoryState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       memories: [],
       searchResults: [],
       stats: null,
@@ -199,9 +166,9 @@ export const useMemoryStore = create<MemoryState>()(
 
           const memory = (await response.json()) as Memory;
 
-          // Update local state with trim to prevent unbounded growth
+          // Update local state
           set((state) => ({
-            memories: trimMemories([memory, ...state.memories]),
+            memories: [memory, ...state.memories],
             isLoading: false,
           }));
 
@@ -364,12 +331,12 @@ export const useMemoryStore = create<MemoryState>()(
 
           const summary = (await response.json()) as MemorySummary;
 
-          // Update local state with trim to prevent unbounded growth
+          // Update local state
           set((state) => ({
-            summaries: trimSummaries({
+            summaries: {
               ...state.summaries,
               [memoryId]: summary,
-            }),
+            },
             summarizationStatus: 'idle',
           }));
 
@@ -387,15 +354,72 @@ export const useMemoryStore = create<MemoryState>()(
         const state = get();
         return state.summaries[memoryId] ?? null;
       },
-    }),
-    {
-      name: 'memory-storage',
-      partialize: (state) => ({
-        memories: trimMemories(state.memories),
-        summaries: trimSummaries(state.summaries),
-      }),
-    }
-  )
+
+      exportMemories: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`${API_BASE}/export`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to export memories: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          set({ isLoading: false });
+
+          // Create and download JSON file
+          const jsonStr = JSON.stringify(data, null, 2);
+          const blob = new Blob([jsonStr], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `eigent-memories-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          return jsonStr;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: message, isLoading: false });
+          console.error('[MemoryStore] Failed to export memories:', error);
+          return null;
+        }
+      },
+
+      importMemories: async (jsonData: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`${API_BASE}/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: jsonData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to import memories: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          set({ isLoading: false });
+
+          // Refresh memories and stats after import
+          await get().fetchMemories();
+          await get().fetchStats();
+
+          return result.imported || 0;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: message, isLoading: false });
+          console.error('[MemoryStore] Failed to import memories:', error);
+          return 0;
+        }
+      },
+    })
 );
 
 // ========= OPTIMIZED SELECTORS (prevent unnecessary re-renders) =========
