@@ -56,7 +56,11 @@ export interface MockedElectronAPI {
   simulateInstallationStart: () => void;
   simulateInstallationLog: (type: 'stdout' | 'stderr', data: string) => void;
   simulateInstallationComplete: (success: boolean, error?: string) => void;
-  simulateBackendReady: (success?: boolean, port?: number, error?: string) => void;
+  simulateBackendReady: (
+    success?: boolean,
+    port?: number,
+    error?: string
+  ) => void;
   simulateVersionChange: (newVersion: string) => void;
   simulateVenvRemoval: () => void;
   simulateUvicornStartup: () => void;
@@ -348,6 +352,12 @@ export function createElectronAPIMock(): MockedElectronAPI {
       }
       installCompleteListeners.forEach((listener) =>
         listener({ success, error, code: success ? 0 : 1 })
+      );
+    },
+
+    simulateBackendReady: (success = true, port = 8000, error?: string) => {
+      backendReadyListeners.forEach((listener) =>
+        listener({ success, port, error })
       );
     },
 
