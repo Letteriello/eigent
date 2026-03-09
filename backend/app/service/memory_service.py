@@ -186,9 +186,10 @@ class MemoryService:
         try:
             storage = self._get_storage()
             embedding_model = self._get_embedding_model()
-            vector = embedding_model.embed(memory.content)  # Always use plaintext for embeddings
+            vector = await asyncio.to_thread(embedding_model.embed, memory.content)  # Always use plaintext for embeddings
 
-            storage.write(
+            await asyncio.to_thread(
+                storage.write,
                 vectors={[memory_id]: vector},
                 payloads=[
                     {
@@ -231,7 +232,8 @@ class MemoryService:
         # Try to get from Qdrant
         try:
             storage = self._get_storage()
-            results = storage.query(
+            results = await asyncio.to_thread(
+                storage.query,
                 query_filter={"id": memory_id},
                 top_k=1,
             )

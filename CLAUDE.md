@@ -21,21 +21,22 @@ npm run dev
 
 ### Frontend (root)
 
-| Command               | Description               |
-| --------------------- | ------------------------- |
-| `npm run dev`         | Start development server  |
-| `npm run build`       | Build for production      |
-| `npm run build:win`   | Build Windows installer   |
-| `npm run build:mac`   | Build macOS installer     |
-| `npm run build:linux` | Build Linux installer     |
-| `npm run test`        | Run Vitest tests          |
-| `npm run test:watch`  | Run tests in watch mode   |
-| `npm run test:e2e`    | Run E2E tests             |
-| `npm run type-check`  | TypeScript type check     |
-| `npm run lint`        | Run ESLint                |
-| `npm run lint:fix`    | Fix ESLint issues         |
-| `npm run format`      | Format code with Prettier |
-| `npm run storybook`   | Start Storybook           |
+| Command                 | Description                |
+| ----------------------- | -------------------------- |
+| `npm run prebuild:deps` | Install build dependencies |
+| `npm run dev`           | Start development server   |
+| `npm run build`         | Build for production       |
+| `npm run build:win`     | Build Windows installer    |
+| `npm run build:mac`     | Build macOS installer      |
+| `npm run build:linux`   | Build Linux installer      |
+| `npm run test`          | Run Vitest tests           |
+| `npm run test:watch`    | Run tests in watch mode    |
+| `npm run test:e2e`      | Run E2E tests              |
+| `npm run type-check`    | TypeScript type check      |
+| `npm run lint`          | Run ESLint                 |
+| `npm run lint:fix`      | Fix ESLint issues          |
+| `npm run format`        | Format code with Prettier  |
+| `npm run storybook`     | Start Storybook            |
 
 ### Backend (./backend)
 
@@ -99,10 +100,37 @@ eigent/
 | `src/main.tsx`                        | React entry point       |
 | `electron/main/index.ts`              | Electron main process   |
 | `electron/preload/index.ts`           | Preload bridge (IPC)    |
-| `backend/app/main.py`                 | FastAPI application     |
+| `backend/main.py`                     | FastAPI application     |
 | `backend/app/agent/agent_model.py`    | Agent model definitions |
 | `backend/app/service/chat_service.py` | Chat orchestration      |
 | `backend/app/agent/toolkit/*.py`      | Tool implementations    |
+
+## Claude Code Configuration
+
+This project uses Claude Code with custom agents, rules, and skills.
+
+### Agents (`.claude/agents/`)
+
+- `frontend-dev` - React/TypeScript development
+- `backend-dev` - Python/FastAPI development
+- `code-reviewer` - Code review and quality
+- `debugger` - Bug investigation and fixes
+
+### Rules (`.claude/rules/`)
+
+- `context-isolation.md` - Context management rules
+- `react-render.md` - React render phase patterns
+- `session-memory.md` - Session memory management
+
+### Skills (`.claude/skills/`)
+
+- Custom skills in `.claude/skills/`
+- Project-specific: `team-code`, `research`, `gen-test`
+
+### Settings (`.claude/settings.json`)
+
+- Hooks configured for automation
+- Worktree management enabled
 
 ## Code Style
 
@@ -125,6 +153,9 @@ eigent/
 - **Electron security**: Use `contextIsolation: true` and `nodeIntegration: false`
 - **IPC**: Use preload script for secure renderer-main communication
 - **Backend venv**: Located at `backend/.venv/`
+- **Performance**: Use Zustand selectors with `shallow` for optimized re-renders
+- **React**: Use React.memo on frequently re-rendering components
+- **Lazy loading**: Use React.lazy + Suspense for route-based code splitting
 
 ## Testing
 

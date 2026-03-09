@@ -182,7 +182,7 @@ export const useModelPreferences = () =>
 export const useInitState = () => useAuthStore((state) => state.initState);
 
 // ============================================================================
-// ProjectStore Selectors
+// ProjectStore Selectors & Hooks
 // ============================================================================
 
 /**
@@ -217,6 +217,44 @@ export const selectActiveProject = (state: ProjectStore): Project | null => {
  */
 export const selectActiveProjectIdShallow = (state: ProjectStore) =>
   state.activeProjectId;
+
+// ============================================================================
+// ProjectStore Optimized Hooks (with shallow equality)
+// ============================================================================
+
+import { useProjectStore } from './projectStore';
+
+/**
+ * Hook to get the active project ID
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useActiveProjectId = () =>
+  useProjectStore((state) => state.activeProjectId, shallow);
+
+/**
+ * Hook to get all projects
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useAllProjects = () =>
+  useProjectStore((state) => state.projects, shallow);
+
+/**
+ * Hook to get a specific project by ID
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useProjectById = (projectId: string) =>
+  useProjectStore((state) => state.projects[projectId] || null, shallow);
+
+/**
+ * Hook to get queued messages for the active project
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useQueuedMessages = () =>
+  useProjectStore((state) => {
+    const { activeProjectId, projects } = state;
+    if (!activeProjectId) return [];
+    return projects[activeProjectId]?.queuedMessages || [];
+  }, shallow);
 
 // ============================================================================
 // Utility Hooks with Shallow Equality

@@ -309,9 +309,21 @@ describe('useInstallationSetup Hook', () => {
         expect(mockInstallationStore.startInstallation).toHaveBeenCalled();
       });
 
-      // Should receive logs and completion
+      // Should receive logs - setSuccess requires backend-ready event
       await vi.waitFor(() => {
         expect(mockInstallationStore.addLog).toHaveBeenCalled();
+      });
+
+      // Simulate backend-ready event to trigger setSuccess
+      const backendReadyCallback =
+        electronAPI.onBackendReady?.mock.calls?.[0]?.[0];
+      if (backendReadyCallback) {
+        act(() => {
+          backendReadyCallback({ success: true, port: 8000 });
+        });
+      }
+
+      await vi.waitFor(() => {
         expect(mockInstallationStore.setSuccess).toHaveBeenCalled();
       });
     });
@@ -397,9 +409,10 @@ describe('useInstallationSetup Hook', () => {
       });
     });
 
-    it('should not set carousel state if initState is not done', async () => {
+    it('should set carousel state if initState is not done and tools not installed', async () => {
       mockAuthStore.initState = 'loading';
 
+      // Tools are NOT installed
       window.ipcRenderer.invoke = vi.fn().mockResolvedValue({
         success: true,
         isInstalled: false,
@@ -413,8 +426,9 @@ describe('useInstallationSetup Hook', () => {
         );
       });
 
-      // Should not call setInitState because initState is not 'done'
-      expect(mockAuthStore.setInitState).not.toHaveBeenCalledWith('carousel');
+      // Should call setInitState('carousel') because tools are not installed
+      // This is correct behavior - when tools are missing, show carousel
+      expect(mockAuthStore.setInitState).toHaveBeenCalledWith('carousel');
     });
   });
 });

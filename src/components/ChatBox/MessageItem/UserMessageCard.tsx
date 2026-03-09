@@ -12,6 +12,8 @@
 // limitations under the License.
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
+import React from 'react';
+
 import { cn } from '@/lib/utils';
 import { Check, Copy, FileText, Image, Sparkles } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
@@ -53,7 +55,7 @@ interface UserMessageCardProps {
   attaches?: File[];
 }
 
-export function UserMessageCard({
+function UserMessageCard({
   id,
   content,
   className,
@@ -269,3 +271,18 @@ export function UserMessageCard({
     </div>
   );
 }
+
+// Memoize with custom comparison for props that matter
+const UserMessageCardMemo = React.memo(
+  UserMessageCard,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.id === nextProps.id &&
+      prevProps.content === nextProps.content &&
+      prevProps.className === nextProps.className &&
+      prevProps.attaches === nextProps.attaches
+    );
+  }
+);
+
+export { UserMessageCardMemo as UserMessageCard };

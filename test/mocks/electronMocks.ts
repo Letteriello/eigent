@@ -42,6 +42,7 @@ export interface MockedElectronAPI {
   onInstallDependenciesStart: ReturnType<typeof vi.fn>;
   onInstallDependenciesLog: ReturnType<typeof vi.fn>;
   onInstallDependenciesComplete: ReturnType<typeof vi.fn>;
+  onBackendReady: ReturnType<typeof vi.fn>;
   removeAllListeners: ReturnType<typeof vi.fn>;
 
   // EnvUtil mock functions
@@ -55,6 +56,7 @@ export interface MockedElectronAPI {
   simulateInstallationStart: () => void;
   simulateInstallationLog: (type: 'stdout' | 'stderr', data: string) => void;
   simulateInstallationComplete: (success: boolean, error?: string) => void;
+  simulateBackendReady: (success?: boolean, port?: number, error?: string) => void;
   simulateVersionChange: (newVersion: string) => void;
   simulateVenvRemoval: () => void;
   simulateUvicornStartup: () => void;
@@ -82,6 +84,9 @@ export function createElectronAPIMock(): MockedElectronAPI {
   > = [];
   const installCompleteListeners: Array<
     (data: { success: boolean; code?: number; error?: string }) => void
+  > = [];
+  const backendReadyListeners: Array<
+    (data: { success: boolean; port?: number; error?: string }) => void
   > = [];
 
   const mockState = {
@@ -228,10 +233,25 @@ export function createElectronAPIMock(): MockedElectronAPI {
         }
       ),
 
+    onBackendReady: vi
+      .fn()
+      .mockImplementation(
+        (
+          callback: (data: {
+            success: boolean;
+            port?: number;
+            error?: string;
+          }) => void
+        ) => {
+          backendReadyListeners.push(callback);
+        }
+      ),
+
     removeAllListeners: vi.fn().mockImplementation(() => {
       installStartListeners.length = 0;
       installLogListeners.length = 0;
       installCompleteListeners.length = 0;
+      backendReadyListeners.length = 0;
     }),
 
     // EnvUtil mock functions

@@ -31,6 +31,8 @@ import Setting from '@/pages/Setting';
 import { useAuthStore } from '@/store/authStore';
 import { Plus } from 'lucide-react';
 import { lazy, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 // Lazy load tab content components - only loaded when tab is active
 const Agents = lazy(() => import('./Agents'));
