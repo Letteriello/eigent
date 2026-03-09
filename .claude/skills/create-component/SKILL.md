@@ -11,6 +11,7 @@ Cria um novo componente React com boilerplate遵循 o padrão do projeto Eigent.
 ## Quando Usar
 
 Use esta skill quando:
+
 - Usuário pede para criar um novo componente
 - Precisa adicionar um novo componente React ao projeto
 
