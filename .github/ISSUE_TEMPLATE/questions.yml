@@ -1,6 +1,6 @@
 name: 🤔 Questions / Help / Support
 description: Do you need support?
-title: "[Question] "
+title: '[Question] '
 labels: [question]
 body:
   - type: textarea

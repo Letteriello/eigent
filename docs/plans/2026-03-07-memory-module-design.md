@@ -85,15 +85,15 @@ class AgentMemory(BaseModel):
 
 ## 4. API Endpoints
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/api/memory/{agent_id}` | Criar nova memória |
-| GET | `/api/memory/{agent_id}` | Listar todas as memórias do agente |
-| GET | `/api/memory/{agent_id}/search` | Busca híbrida (query param) |
-| GET | `/api/memory/{id}` | Obter memória específica |
-| PUT | `/api/memory/{id}` | Atualizar memória |
-| DELETE | `/api/memory/{id}` | Deletar memória |
-| DELETE | `/api/memory/agent/{agent_id}/all` | Limpar todas as memórias |
+| Método | Endpoint                           | Descrição                          |
+| ------ | ---------------------------------- | ---------------------------------- |
+| POST   | `/api/memory/{agent_id}`           | Criar nova memória                 |
+| GET    | `/api/memory/{agent_id}`           | Listar todas as memórias do agente |
+| GET    | `/api/memory/{agent_id}/search`    | Busca híbrida (query param)        |
+| GET    | `/api/memory/{id}`                 | Obter memória específica           |
+| PUT    | `/api/memory/{id}`                 | Atualizar memória                  |
+| DELETE | `/api/memory/{id}`                 | Deletar memória                    |
+| DELETE | `/api/memory/agent/{agent_id}/all` | Limpar todas as memórias           |
 
 ---
 
@@ -206,22 +206,26 @@ MEMORY_QDRANT_PATH=~/.eigent/qdrant
 ## 10. Roadmap de Implementação
 
 ### Fase 1: Backend Core
+
 - [ ] Modelos de dados (Pydantic)
 - [ ] Service layer (CRUD)
 - [ ] Controller (endpoints REST)
 - [ ] Integração Qdrant básica
 
 ### Fase 2: Busca Híbrida
+
 - [ ] Implementação BM25
 - [ ] Fusão RRF
 - [ ] Busca por tipo
 
 ### Fase 3: Frontend
+
 - [ ] Memory.tsx (UI completa)
 - [ ] memoryStore.ts (Zustand)
 - [ ] Integração API
 
 ### Fase 4: Integração Agentes
+
 - [ ] MemoryToolkit para agentes
 - [ ] Context injection
 - [ ] Testes de integração
@@ -230,21 +234,21 @@ MEMORY_QDRANT_PATH=~/.eigent/qdrant
 
 ## 11. Decisões de Design
 
-| Decisão | Justificativa |
-|---------|---------------|
-| Qdrant + SQLite | Qdrant para vetores, SQLite para metadados (já temos qdrant-client) |
-| Embeddings OpenAI ada-002 | Já usado no RAG existente, dimensão 1536 |
-| Busca híbrida (BM25 + Vector) | Melhor precisão combinando busca textual e semântica |
-| Coleções por agente | Isolamento natural e segurança |
-| Importância 0-1 | Controle granular sobre quais memórias priorizar |
+| Decisão                       | Justificativa                                                       |
+| ----------------------------- | ------------------------------------------------------------------- |
+| Qdrant + SQLite               | Qdrant para vetores, SQLite para metadados (já temos qdrant-client) |
+| Embeddings OpenAI ada-002     | Já usado no RAG existente, dimensão 1536                            |
+| Busca híbrida (BM25 + Vector) | Melhor precisão combinando busca textual e semântica                |
+| Coleções por agente           | Isolamento natural e segurança                                      |
+| Importância 0-1               | Controle granular sobre quais memórias priorizar                    |
 
 ---
 
 ## 12. Riscos e Mitigações
 
-| Risco | Mitigação |
-|-------|-----------|
-| Latência alta em buscas | Cache em memória + índices otimizados |
-| Custo de embeddings | Batch processing + cache de embeddings |
-| Dados sensíveis | Criptografia em repouso + isolamento por projeto |
-| Escala | Paginação + limites configuráveis |
+| Risco                   | Mitigação                                        |
+| ----------------------- | ------------------------------------------------ |
+| Latência alta em buscas | Cache em memória + índices otimizados            |
+| Custo de embeddings     | Batch processing + cache de embeddings           |
+| Dados sensíveis         | Criptografia em repouso + isolamento por projeto |
+| Escala                  | Paginação + limites configuráveis                |

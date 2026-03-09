@@ -14,6 +14,7 @@
 
 """Memory service for persistent agent memory storage with hybrid search."""
 
+import asyncio
 import hashlib
 import logging
 import os

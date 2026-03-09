@@ -1,7 +1,7 @@
 ---
-name: "frontend-dev"
-description: "Especialista em React, TypeScript e UI/UX"
-color: "#61dafb"
+name: 'frontend-dev'
+description: 'Especialista em React, TypeScript e UI/UX'
+color: '#61dafb'
 tools:
   - Read
   - Edit

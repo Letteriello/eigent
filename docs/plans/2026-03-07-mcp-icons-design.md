@@ -20,13 +20,13 @@ Criar `src/lib/mcpServiceIcons.tsx` com mapeamento de nomes de serviços para í
 ```typescript
 // Mapeamento de serviços para ícones Lucide ou componentes SVG
 const mcpServiceIconMap: Record<string, LucideIcon | React.ComponentType> = {
-  'Discord': DiscordIcon,      // SVG customizado
-  'Slack': SlackIcon,          // SVG customizado
-  'Gmail': GmailIcon,          // SVG customizado
+  Discord: DiscordIcon, // SVG customizado
+  Slack: SlackIcon, // SVG customizado
+  Gmail: GmailIcon, // SVG customizado
   'Google Calendar': CalendarIcon,
   'Google Drive': DriveIcon,
-  'Notion': NotionIcon,
-  'LinkedIn': LinkedInIcon,
+  Notion: NotionIcon,
+  LinkedIn: LinkedInIcon,
   // ... etc
 };
 ```
@@ -42,6 +42,7 @@ Criar componente `MCPServiceIcon` em `src/components/MCPServiceIcon.tsx`:
 ### 3. Arquivos SVG
 
 Adicionar logos em `src/assets/mcp/logos/`:
+
 - discord.svg
 - slack.svg
 - gmail.svg
@@ -57,14 +58,17 @@ Adicionar logos em `src/assets/mcp/logos/`:
 ### 4. Integração
 
 **IntegrationList/index.tsx:**
+
 - Substituir `<img src={ellipseIcon}>` por `<MCPServiceIcon serviceName={item.name} />`
 
 **MCPListItem.tsx:**
+
 - Substituir `<div className="bg-green-500 rounded-full">` por `<MCPServiceIcon serviceName={item.mcp_name} />`
 
 ### 5. Tratamento de Fallback
 
 Se o serviço não tiver ícone customizado:
+
 - Usar ícone genérico de ferramenta (Wrench ou Settings)
 - Manter comportamento consistente com resto do app
 
@@ -77,20 +81,20 @@ Se o serviço não tiver ícone customizado:
 
 ## Servicos Suportados Inicialmente
 
-| Serviço | Tipo Ícone | Prioridade |
-|---------|-------------|------------|
-| Discord | SVG brand | Alta |
-| Slack | SVG brand | Alta |
-| Gmail | SVG brand | Alta |
-| Google Calendar | SVG brand | Alta |
-| Notion | SVG brand | Alta |
-| LinkedIn | SVG brand | Alta |
-| Google Drive | SVG brand | Média |
-| GitHub | SVG brand | Média |
-| Twitter/X | SVG brand | Média |
-| Reddit | SVG brand | Baixa |
-| WhatsApp | SVG brand | Baixa |
-| Outros | Lucide genérico | Fallback |
+| Serviço         | Tipo Ícone      | Prioridade |
+| --------------- | --------------- | ---------- |
+| Discord         | SVG brand       | Alta       |
+| Slack           | SVG brand       | Alta       |
+| Gmail           | SVG brand       | Alta       |
+| Google Calendar | SVG brand       | Alta       |
+| Notion          | SVG brand       | Alta       |
+| LinkedIn        | SVG brand       | Alta       |
+| Google Drive    | SVG brand       | Média      |
+| GitHub          | SVG brand       | Média      |
+| Twitter/X       | SVG brand       | Média      |
+| Reddit          | SVG brand       | Baixa      |
+| WhatsApp        | SVG brand       | Baixa      |
+| Outros          | Lucide genérico | Fallback   |
 
 ## Arquivos a Modificar
 

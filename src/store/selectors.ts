@@ -81,7 +81,7 @@ export const selectActiveTask = (state: ChatStore) => {
 export const selectUpdateCount = (state: ChatStore) => state.updateCount;
 
 // ============================================================================
-// AuthStore Selectors
+// AuthStore Selectors & Hooks
 // ============================================================================
 
 /**
@@ -125,6 +125,61 @@ export const selectWorkerList = (state: AuthState) => {
   if (!email) return [];
   return state.workerListData[email] || [];
 };
+
+// ============================================================================
+// AuthStore Optimized Hooks (with shallow equality)
+// ============================================================================
+
+import { useAuthStore } from './authStore';
+
+/**
+ * Hook to get auth info (token, username, email, user_id)
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useAuthInfo = () =>
+  useAuthStore(
+    (state) => ({
+      token: state.token,
+      username: state.username,
+      email: state.email,
+      user_id: state.user_id,
+    }),
+    shallow
+  );
+
+/**
+ * Hook to get app settings (appearance, language, isFirstLaunch)
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useAppSettings = () =>
+  useAuthStore(
+    (state) => ({
+      appearance: state.appearance,
+      language: state.language,
+      isFirstLaunch: state.isFirstLaunch,
+    }),
+    shallow
+  );
+
+/**
+ * Hook to get model preferences (modelType, cloud_model_type, preferredIDE)
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useModelPreferences = () =>
+  useAuthStore(
+    (state) => ({
+      modelType: state.modelType,
+      cloud_model_type: state.cloud_model_type,
+      preferredIDE: state.preferredIDE,
+    }),
+    shallow
+  );
+
+/**
+ * Hook to get init state
+ * Uses shallow equality to prevent unnecessary re-renders
+ */
+export const useInitState = () => useAuthStore((state) => state.initState);
 
 // ============================================================================
 // ProjectStore Selectors

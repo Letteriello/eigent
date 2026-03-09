@@ -165,14 +165,24 @@ describe('useInstallationSetup Hook', () => {
     it('should handle install-dependencies-complete event with success', () => {
       renderHook(() => useInstallationSetup());
 
-      // Get the registered callback
+      // Get the registered callbacks
       const completeCallback =
         electronAPI.onInstallDependenciesComplete.mock.calls[0][0];
-      const completeData = { success: true };
+      const backendReadyCallback =
+        electronAPI.onBackendReady?.mock.calls?.[0]?.[0];
 
+      // Fire install-complete event
       act(() => {
-        completeCallback(completeData);
+        completeCallback({ success: true });
       });
+
+      // setSuccess is called when BOTH installation is complete AND backend is ready
+      // Fire backend-ready event to trigger setSuccess
+      if (backendReadyCallback) {
+        act(() => {
+          backendReadyCallback({ success: true, port: 8000 });
+        });
+      }
 
       expect(mockInstallationStore.setSuccess).toHaveBeenCalled();
       expect(mockAuthStore.setInitState).toHaveBeenCalledWith('done');

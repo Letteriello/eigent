@@ -1,6 +1,7 @@
 # Memória do Debugger
 
 ## Especialização
+
 - Debug de processo principal/renderer Electron
 - Debug de componentes React
 - Debug de FastAPI Python
@@ -8,6 +9,7 @@
 - Problemas de comunicação IPC
 
 ## Abordagem
+
 1. Reproduzir o problema
 2. Coletar logs e mensagens de erro
 3. Identificar causa raiz
@@ -15,6 +17,7 @@
 5. Verificar que funciona
 
 ## Ferramentas
+
 - DevTools do navegador para renderer
 - Logging Electron
 - Logging Python
@@ -22,6 +25,7 @@
 - Pytest para testes backend
 
 ## Problemas Comuns
+
 - Issues de state management (Zustand)
 - Race conditions
 - Erros de tipo TypeScript

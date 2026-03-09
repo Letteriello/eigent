@@ -21,6 +21,7 @@ Pesquisa automaticamente qualquer tópico técnico e cria documentação organiz
 ### Passo 1: Extrair Tema de Pesquisa
 
 Analise o pedido do usuário e extraia:
+
 - **Tema principal**: O que pesquisar
 - **Contexto**: Por que precisa saber
 - **Escopo**: Quão profundo pesquisar
@@ -28,6 +29,7 @@ Analise o pedido do usuário e extraia:
 ### Passo 2: Executar Pesquisas Web
 
 Para cada tema, pesquise:
+
 1. Tutoriais e documentações oficiais
 2. Artigos técnicos e blog posts
 3. Comparações e benchmarks
@@ -37,6 +39,7 @@ Para cada tema, pesquise:
 ### Passo 3: Organizar Resultados
 
 Crie estrutura de pasta em `docs/research/<tema>/`:
+
 ```
 docs/research/
 └── <tema-slugified>/
@@ -49,6 +52,7 @@ docs/research/
 ### Passo 4: Criar Caderno NotebookLM (Opcional)
 
 Se o usuário quiser usar NotebookLM:
+
 1. Compile as melhores fontes
 2. Crie caderno com título descritivo
 3. Adicione fontes como referências
@@ -56,6 +60,7 @@ Se o usuário quiser usar NotebookLM:
 ### Passo 5: Apresentar Resultados
 
 Forneça ao usuário:
+
 - Resumo executive das descobertas
 - Lista de fontes mais relevantes
 - Recomendações claras
@@ -86,6 +91,7 @@ Forneça ao usuário:
 ## Integração com NotebookLM
 
 Se o NotebookLM MCP estiver disponível, use-o para:
+
 1. Criar cadernos automaticamente
 2. Adicionar fontes aos cadernos existentes
 3. Gerar resumos automáticos

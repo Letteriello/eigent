@@ -39,8 +39,8 @@ docs/
 2. Add a frontmatter title at the top:
    ```md
    ---
-   title: "My Feature"
-   description: "Short description shown in search and meta."
+   title: 'My Feature'
+   description: 'Short description shown in search and meta.'
    ---
    ```
 3. Register the page in `docs.json` under `navigation.tabs[0].groups` in the relevant group's `pages` array:

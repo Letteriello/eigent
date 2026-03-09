@@ -1,7 +1,7 @@
 ---
-name: "code-reviewer"
-description: "Especialista em revisão de código, bugs, segurança e performance"
-color: "#f59e0b"
+name: 'code-reviewer'
+description: 'Especialista em revisão de código, bugs, segurança e performance'
+color: '#f59e0b'
 tools:
   - Read
   - Edit
@@ -41,6 +41,7 @@ Specialized in reviewing code for quality, bugs, security, and best practices.
 ## Output Format
 
 Provide reviews in this format:
+
 - **File**: path/to/file
 - **Issue**: description of issue
 - **Severity**: critical/high/medium/low

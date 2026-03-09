@@ -13,6 +13,7 @@
 ### Task 1: Create mcpServiceIcons.tsx library
 
 **Files:**
+
 - Create: `src/lib/mcpServiceIcons.tsx`
 
 **Step 1: Create the file with icon mapping**
@@ -363,12 +364,14 @@ Run: `git add src/lib/mcpServiceIcons.tsx && git commit -m "feat: add MCP servic
 ### Task 2: Update IntegrationList component to use MCPServiceIcon
 
 **Files:**
+
 - Modify: `src/components/IntegrationList/index.tsx:1-50`
 - Modify: `src/components/IntegrationList/index.tsx:340-380`
 
 **Step 1: Add import for getMCPServiceIcon**
 
 Add after line 23 (after TooltipSimple import):
+
 ```typescript
 import { getMCPServiceIcon } from '@/lib/mcpServiceIcons';
 ```
@@ -376,6 +379,7 @@ import { getMCPServiceIcon } from '@/lib/mcpServiceIcons';
 **Step 2: Replace ellipse icon with MCPServiceIcon**
 
 Find lines 345-354 (the isSelectMode section):
+
 ```typescript
 // REPLACE this:
 {(isSelectMode || showStatusDot) && (
@@ -400,6 +404,7 @@ Find lines 345-354 (the isSelectMode section):
 ```
 
 Find lines 366-377 (the manage mode section) and replace similarly:
+
 ```typescript
 // REPLACE this:
 {showStatusDot && (
@@ -432,11 +437,13 @@ Run: `git add src/components/IntegrationList/index.tsx && git commit -m "feat: r
 ### Task 3: Update MCPListItem component to use MCPServiceIcon
 
 **Files:**
+
 - Modify: `src/pages/Connectors/components/MCPListItem.tsx:1-50`
 
 **Step 1: Add import for getMCPServiceIcon**
 
 Add after line 20 (after types import):
+
 ```typescript
 import { getMCPServiceIcon } from '@/lib/mcpServiceIcons';
 ```
@@ -444,6 +451,7 @@ import { getMCPServiceIcon } from '@/lib/mcpServiceIcons';
 **Step 2: Replace green dot with MCPServiceIcon**
 
 Find line 42:
+
 ```typescript
 // REPLACE this:
 <div className="mx-xs h-3 w-3 bg-green-500 rounded-full"></div>
@@ -486,6 +494,7 @@ Run: `git add -A && git commit -m "fix: type-check and lint fixes for MCP icons"
 ### Task 5: Optional - Add more service icons if needed
 
 If certain services are missing, add them to `mcpServiceIcons.tsx`:
+
 - Check which services are available in `/api/config/info`
 - Add SVG icons following the same pattern
 - Commit each new addition
@@ -494,13 +503,13 @@ If certain services are missing, add them to `mcpServiceIcons.tsx`:
 
 ## Summary
 
-| Task | Action | Files |
-|------|--------|-------|
-| 1 | Create icon library | `src/lib/mcpServiceIcons.tsx` |
-| 2 | Update IntegrationList | `src/components/IntegrationList/index.tsx` |
-| 3 | Update MCPListItem | `src/pages/Connectors/components/MCPListItem.tsx` |
-| 4 | Verify changes | Type check, lint, tests |
-| 5 | Add more icons (optional) | Extend `mcpServiceIcons.tsx` |
+| Task | Action                    | Files                                             |
+| ---- | ------------------------- | ------------------------------------------------- |
+| 1    | Create icon library       | `src/lib/mcpServiceIcons.tsx`                     |
+| 2    | Update IntegrationList    | `src/components/IntegrationList/index.tsx`        |
+| 3    | Update MCPListItem        | `src/pages/Connectors/components/MCPListItem.tsx` |
+| 4    | Verify changes            | Type check, lint, tests                           |
+| 5    | Add more icons (optional) | Extend `mcpServiceIcons.tsx`                      |
 
 ## Notes
 

@@ -19,6 +19,7 @@ cp -r wrap-up ~/.claude/plugins/user-plugins/
 ```
 
 Then restart Claude Code or use:
+
 ```bash
 cc --plugin-dir ~/.claude/plugins/user-plugins/wrap-up
 ```

@@ -1,12 +1,23 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write.*\\.env",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Arquivos .env nao devem ser editados diretamente. Use git para modificar.'"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write.*backend.*\\.py$",
         "hooks": [
           {
             "type": "command",
-            "command": "cd ../backend && .venv/Scripts/python -m ruff check --fix ${CLAUDE_FILE_PATH}"
+            "command": "cd ../backend && .venv/Scripts/python -m ruff check --fix \"$CLAUDE_FILE_PATH\""
           }
         ]
       },
@@ -15,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd ../backend && .venv/Scripts/python -m pytest ${CLAUDE_FILE_PATH} -v"
+            "command": "cd ../backend && .venv/Scripts/python -m pytest \"$CLAUDE_FILE_PATH\" -v"
           }
         ]
       },
@@ -24,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd ../backend && .venv/Scripts/python -m bandit -r ${CLAUDE_FILE_PATH}"
+            "command": "cd ../backend && .venv/Scripts/python -m bandit -r \"$CLAUDE_FILE_PATH\""
           }
         ]
       },
@@ -33,11 +44,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write ${CLAUDE_FILE_PATH}"
-          },
+            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write.*(src|test|electron).*\\.(ts|tsx)$",
+        "hooks": [
           {
             "type": "command",
-            "command": "npx eslint --fix ${CLAUDE_FILE_PATH}"
+            "command": "npx eslint --fix \"$CLAUDE_FILE_PATH\""
           }
         ]
       },
@@ -46,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsc --noEmit ${CLAUDE_FILE_PATH}"
+            "command": "npx tsc --noEmit \"$CLAUDE_FILE_PATH\""
           }
         ]
       },
@@ -55,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx vitest run ${CLAUDE_FILE_PATH}"
+            "command": "npx vitest run \"$CLAUDE_FILE_PATH\""
           }
         ]
       }

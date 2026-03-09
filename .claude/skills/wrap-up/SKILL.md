@@ -29,6 +29,7 @@ Esta skill executa um checklist autônomo de fim de sessão em 4 fases, sem inte
 ### 1.1 Versionamento Automático (Commit e Push)
 
 Execute `git status` no diretório do repositório. Se houver mudanças não commitadas:
+
 - Faça **auto-commit diretamente na branch main** com mensagem descritiva (analise os arquivos modificados para gerar mensagem meaningful)
 - Execute `git push` para o remote configurado
 - Não peça confirmação - faça automaticamente
@@ -36,10 +37,12 @@ Execute `git status` no diretório do repositório. Se houver mudanças não com
 ### 1.2 File Placement Check (Verificação e Organização)
 
 **Arquivos de documentação FORA DO LUGAR** - movimento OBRIGATÓRIO:
+
 - Qualquer `.md`, `.pdf`, `.docx`, `.xlsx` ou `.pptx` na **raiz do workspace** ou no meio do código-fonte deve ser **movido compulsoriamente para `docs/`**
 - Execute o move automaticamente sem perguntar
 
 **Convenções de nomenclatura**:
+
 - Valide se arquivos seguem os padrões do projeto
 - Renomeie automaticamente arquivos que violem regras de nomenclatura
 - Documente cada ação no output
@@ -67,12 +70,12 @@ Execute `git status` no diretório do repositório. Se houver mudanças não com
 
 Revise a conversa e categorize CADA aprendizado no nível correto:
 
-| Nível | Quando usar | Arquivo/Destino |
-|-------|-------------|-----------------|
-| **Auto memory** | Padrões de debug, insights que o Claude descobriu sozinho, quirks não documentados | `memory/MEMORY.md` ou arquivos temáticos |
-| **CLAUDE.md** | Convenções permanentes, decisões de arquitetura, regras globais | Arquivo raiz CLAUDE.md do projeto |
-| **.claude/rules/** | Diretrizes específicas por tópico/caminho (use frontmatter `paths:`) | Arquivos em `.claude/rules/` |
-| **CLAUDE.local.md** | Notas efêmeras, WIP, URLs de teste locais, credenciais sandbox | Arquivo CLAUDE.local.md local |
+| Nível               | Quando usar                                                                        | Arquivo/Destino                          |
+| ------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Auto memory**     | Padrões de debug, insights que o Claude descobriu sozinho, quirks não documentados | `memory/MEMORY.md` ou arquivos temáticos |
+| **CLAUDE.md**       | Convenções permanentes, decisões de arquitetura, regras globais                    | Arquivo raiz CLAUDE.md do projeto        |
+| **.claude/rules/**  | Diretrizes específicas por tópico/caminho (use frontmatter `paths:`)               | Arquivos em `.claude/rules/`             |
+| **CLAUDE.local.md** | Notas efêmeras, WIP, URLs de teste locais, credenciais sandbox                     | Arquivo CLAUDE.local.md local            |
 
 ### 2.2 Framework de Decisão (Anti-Duplicação)
 
@@ -89,6 +92,7 @@ As informações já estão redundantes? → Use @import reference
 ### 2.3 Processo de Revisão
 
 Para cada aprendizado identificado:
+
 1. Aplique o Framework de Decisão acima
 2. Se não existir arquivo para o nível, crie-o
 3. Use **@import references** em vez de duplicar conteúdo
@@ -106,12 +110,12 @@ Analise TODO o histórico da conversa em busca de falhas. Se sessão curta/routi
 
 **4 Categorias de Findings:**
 
-| Categoria | O que procurar |
-|-----------|----------------|
-| **Skill gap** | Dificuldades, erros de código, alucinações, múltiplas tentativas para acertar |
-| **Friction** | Passos manuais repetitivos que deveriam ser automáticos |
-| **Knowledge** | Fatos sobre o projeto, preferências suas, configurações que o Claude não sabia mas deveria saber |
-| **Automation** | Padrões repetitivos candidatos a novas Skills/Hooks/scripts |
+| Categoria      | O que procurar                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| **Skill gap**  | Dificuldades, erros de código, alucinações, múltiplas tentativas para acertar                    |
+| **Friction**   | Passos manuais repetitivos que deveriam ser automáticos                                          |
+| **Knowledge**  | Fatos sobre o projeto, preferências suas, configurações que o Claude não sabia mas deveria saber |
+| **Automation** | Padrões repetitivos candidatos a novas Skills/Hooks/scripts                                      |
 
 ### 3.2 Execução Zero-Click (Auto-Aplicação)
 
@@ -119,13 +123,13 @@ Analise TODO o histórico da conversa em busca de falhas. Se sessão curta/routi
 
 Mapeie cada descoberta para o tipo de ação correto:
 
-| Tipo de Descoberta | Ação |
-|--------------------|------|
-| Convenções globais | Editar CLAUDE.md |
-| Regras específicas | Criar/atualizar em `.claude/rules/` |
-| Insights do Claude | Salvar na Auto memory |
-| Friction complexa | Documentar especificação para nova Skill/Hook |
-| Contexto pessoal | Editar CLAUDE.local.md |
+| Tipo de Descoberta | Ação                                          |
+| ------------------ | --------------------------------------------- |
+| Convenções globais | Editar CLAUDE.md                              |
+| Regras específicas | Criar/atualizar em `.claude/rules/`           |
+| Insights do Claude | Salvar na Auto memory                         |
+| Friction complexa  | Documentar especificação para nova Skill/Hook |
+| Contexto pessoal   | Editar CLAUDE.local.md                        |
 
 ### 3.3 Relatório Consolidado
 
@@ -141,6 +145,7 @@ Exemplo: ✅ Skill gap: Cost estimates were wrong multiple times → [CLAUDE.md]
 ```
 
 Se sessão curta/routineira:
+
 ```
 Nothing to improve - session was routine.
 ```
@@ -154,6 +159,7 @@ Varra o log da sessão por material que vale a pena publicar.
 ### 4.1 Identificação de Milestones
 
 Procure por:
+
 - Soluções técnicas difíceissuperadas
 - Descobertas importantes sobre o codebase
 - Correções de bugs significativos
@@ -162,6 +168,7 @@ Procure por:
 ### 4.2 Criação de Rascunho
 
 Se houver material suficiente:
+
 1. Crie um rascunho de postagem em formato apropriado
 2. Salve na pasta de rascunhos (docs/drafts/ ou similar)
 3. Inclua:
@@ -173,11 +180,13 @@ Se houver material suficiente:
 ### 4.3 Output
 
 Se não houver material para publicar:
+
 ```
 Nothing worth publishing from this session.
 ```
 
 Se houver material:
+
 ```
 Published: [caminho do arquivo]
 ```

@@ -1,7 +1,7 @@
 ---
-name: "backend-dev"
-description: "Especialista em Python FastAPI e agent toolkits"
-color: "#3776ab"
+name: 'backend-dev'
+description: 'Especialista em Python FastAPI e agent toolkits'
+color: '#3776ab'
 tools:
   - Read
   - Edit

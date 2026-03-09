@@ -15,6 +15,7 @@
 ### Task 1: Create MemoryType Enum
 
 **Files:**
+
 - Modify: `backend/app/model/enums.py`
 
 **Step 1: Add the enum**
@@ -35,6 +36,7 @@ class MemoryType(str, Enum):
 ### Task 2: Create Memory Models (Pydantic)
 
 **Files:**
+
 - Create: `backend/app/model/memory.py`
 
 **Step 1: Write the models**
@@ -105,9 +107,10 @@ class MemorySearchResult(BaseModel):
     source: str  # "vector" | "bm25" | "hybrid"
 ```
 
-**Step 2: Add to model __init__**
+**Step 2: Add to model **init\*\*\*\*
 
 In `backend/app/model/__init__.py`:
+
 ```python
 from app.model.memory import (
     AgentMemory,
@@ -135,6 +138,7 @@ __all__ = [
 ### Task 3: Create Memory Service (CRUD + Qdrant)
 
 **Files:**
+
 - Create: `backend/app/service/memory_service.py`
 
 **Step 1: Write the service**
@@ -377,6 +381,7 @@ memory_service = MemoryService()
 ### Task 4: Create Memory Controller (REST API)
 
 **Files:**
+
 - Create: `backend/app/controller/memory_controller.py`
 
 **Step 1: Write the controller**
@@ -498,6 +503,7 @@ app.include_router(memory_router)
 **Step 1: Add to pyproject.toml**
 
 In `backend/pyproject.toml`, add to dependencies:
+
 ```toml
 rank-bm25 = "^0.2"
 ```
@@ -515,17 +521,20 @@ cd backend && uv sync
 ### Task 6: Implement BM25 Search in Memory Service
 
 **Files:**
+
 - Modify: `backend/app/service/memory_service.py`
 
 **Step 1: Add BM25 search method**
 
 Add these imports at the top:
+
 ```python
 from rank_bm25 import BM25Okapi
 import re
 ```
 
 Add new method to MemoryService class:
+
 ```python
 async def _bm25_search(
     self,
@@ -576,11 +585,13 @@ async def _bm25_search(
 ### Task 7: Implement Hybrid Search (RRF)
 
 **Files:**
+
 - Modify: `backend/app/service/memory_service.py`
 
 **Step 1: Add vector search method**
 
 Add method to MemoryService class:
+
 ```python
 async def _vector_search(
     self,
@@ -722,6 +733,7 @@ async def search(
 ### Task 8: Create Memory Store (Zustand)
 
 **Files:**
+
 - Create: `src/store/memoryStore.ts`
 
 **Step 1: Write the store**
@@ -772,9 +784,20 @@ interface MemoryState {
 
   // Actions
   fetchMemories: (agentId: string) => Promise<void>;
-  searchMemories: (agentId: string, query: string, memoryType?: MemoryType) => Promise<void>;
-  createMemory: (agentId: string, data: CreateMemoryDTO) => Promise<AgentMemory>;
-  updateMemory: (agentId: string, memoryId: string, data: UpdateMemoryDTO) => Promise<void>;
+  searchMemories: (
+    agentId: string,
+    query: string,
+    memoryType?: MemoryType
+  ) => Promise<void>;
+  createMemory: (
+    agentId: string,
+    data: CreateMemoryDTO
+  ) => Promise<AgentMemory>;
+  updateMemory: (
+    agentId: string,
+    memoryId: string,
+    data: UpdateMemoryDTO
+  ) => Promise<void>;
   deleteMemory: (agentId: string, memoryId: string) => Promise<void>;
   clearError: () => void;
 }
@@ -800,7 +823,11 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     }
   },
 
-  searchMemories: async (agentId: string, query: string, memoryType?: MemoryType) => {
+  searchMemories: async (
+    agentId: string,
+    query: string,
+    memoryType?: MemoryType
+  ) => {
     set({ searchLoading: true, error: null });
     try {
       const params = new URLSearchParams({ query, limit: '10' });
@@ -832,7 +859,11 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     }
   },
 
-  updateMemory: async (agentId: string, memoryId: string, data: UpdateMemoryDTO) => {
+  updateMemory: async (
+    agentId: string,
+    memoryId: string,
+    data: UpdateMemoryDTO
+  ) => {
     set({ error: null });
     try {
       const response = await fetch(`${API_BASE}/${agentId}/${memoryId}`, {
@@ -843,7 +874,7 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
       if (!response.ok) throw new Error('Failed to update memory');
       const updated = await response.json();
       set((state) => ({
-        memories: state.memories.map((m) => m.id === memoryId ? updated : m),
+        memories: state.memories.map((m) => (m.id === memoryId ? updated : m)),
       }));
     } catch (error) {
       set({ error: (error as Error).message });
@@ -878,6 +909,7 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
 ### Task 9: Create Memory UI (React)
 
 **Files:**
+
 - Modify: `src/pages/Agents/Memory.tsx`
 
 **Step 1: Replace the Coming Soon content**
@@ -891,9 +923,11 @@ import { useMemoryStore, MemoryType, AgentMemory } from '@/store/memoryStore';
 
 const MEMORY_TYPE_COLORS: Record<MemoryType, string> = {
   fact: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  preference: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+  preference:
+    'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
   context: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  learned: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
+  learned:
+    'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
 };
 
 const MEMORY_TYPE_LABELS: Record<MemoryType, string> = {
@@ -936,12 +970,20 @@ export default function Memory() {
     }
   }, [agentId, searchQuery, filterType]);
 
-  const handleCreate = async (data: { content: string; memory_type: MemoryType; importance: number }) => {
+  const handleCreate = async (data: {
+    content: string;
+    memory_type: MemoryType;
+    importance: number;
+  }) => {
     await createMemory(agentId, data);
     setShowCreateModal(false);
   };
 
-  const handleUpdate = async (data: { content: string; memory_type: MemoryType; importance: number }) => {
+  const handleUpdate = async (data: {
+    content: string;
+    memory_type: MemoryType;
+    importance: number;
+  }) => {
     if (editingMemory) {
       await updateMemory(agentId, editingMemory.id, data);
       setEditingMemory(null);
@@ -954,7 +996,9 @@ export default function Memory() {
     }
   };
 
-  const displayMemories = searchQuery ? searchResults.map(r => r.memory) : memories;
+  const displayMemories = searchQuery
+    ? searchResults.map((r) => r.memory)
+    : memories;
 
   return (
     <div className="m-auto flex h-auto w-full flex-1 flex-col">
@@ -965,7 +1009,7 @@ export default function Memory() {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary/90"
+          className="bg-primary text-white hover:bg-primary/90 flex items-center gap-2 rounded-lg px-4 py-2"
         >
           <Plus className="h-4 w-4" />
           {t('agents.memory.add')}
@@ -981,20 +1025,22 @@ export default function Memory() {
             placeholder={t('agents.memory.search-placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface-secondary pl-10 pr-4 py-2 text-text-body focus:border-primary focus:outline-none"
+            className="border-border focus:border-primary w-full rounded-lg border bg-surface-secondary py-2 pl-10 pr-4 text-text-body focus:outline-none"
           />
         </div>
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value as MemoryType | '')}
-          className="rounded-lg border border-border bg-surface-secondary px-4 py-2 text-text-body"
+          className="border-border rounded-lg border bg-surface-secondary px-4 py-2 text-text-body"
         >
           <option value="">{t('agents.memory.filter-all')}</option>
-          {(['fact', 'preference', 'context', 'learned'] as MemoryType[]).map((type) => (
-            <option key={type} value={type}>
-              {t(MEMORY_TYPE_LABELS[type])}
-            </option>
-          ))}
+          {(['fact', 'preference', 'context', 'learned'] as MemoryType[]).map(
+            (type) => (
+              <option key={type} value={type}>
+                {t(MEMORY_TYPE_LABELS[type])}
+              </option>
+            )
+          )}
         </select>
       </div>
 
@@ -1011,7 +1057,7 @@ export default function Memory() {
       {/* Loading */}
       {(loading || searchLoading) && (
         <div className="flex justify-center py-8">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="border-primary h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
         </div>
       )}
 
@@ -1021,22 +1067,24 @@ export default function Memory() {
           {displayMemories.map((memory) => (
             <div
               key={memory.id}
-              className="rounded-xl border border-border bg-surface-secondary p-4"
+              className="border-border rounded-xl border bg-surface-secondary p-4"
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className={`rounded-full px-2 py-1 text-xs font-medium ${MEMORY_TYPE_COLORS[memory.memory_type]}`}>
+                <span
+                  className={`rounded-full px-2 py-1 text-xs font-medium ${MEMORY_TYPE_COLORS[memory.memory_type]}`}
+                >
                   {t(MEMORY_TYPE_LABELS[memory.memory_type])}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setEditingMemory(memory)}
-                    className="rounded p-1 hover:bg-surface"
+                    className="hover:bg-surface rounded p-1"
                   >
                     <Edit2 className="h-4 w-4 text-text-label" />
                   </button>
                   <button
                     onClick={() => handleDelete(memory.id)}
-                    className="rounded p-1 hover:bg-surface"
+                    className="hover:bg-surface rounded p-1"
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </button>
@@ -1045,11 +1093,10 @@ export default function Memory() {
               <p className="text-text-body">{memory.content}</p>
               <div className="mt-2 flex items-center gap-4 text-xs text-text-label">
                 <span>
-                  {t('agents.memory.importance')}: {Math.round(memory.importance * 100)}%
+                  {t('agents.memory.importance')}:{' '}
+                  {Math.round(memory.importance * 100)}%
                 </span>
-                <span>
-                  {new Date(memory.created_at).toLocaleDateString()}
-                </span>
+                <span>{new Date(memory.created_at).toLocaleDateString()}</span>
               </div>
             </div>
           ))}
@@ -1089,11 +1136,17 @@ function MemoryModal({
 }: {
   memory?: AgentMemory;
   onClose: () => void;
-  onSave: (data: { content: string; memory_type: MemoryType; importance: number }) => void;
+  onSave: (data: {
+    content: string;
+    memory_type: MemoryType;
+    importance: number;
+  }) => void;
 }) {
   const { t } = useTranslation();
   const [content, setContent] = useState(memory?.content || '');
-  const [memoryType, setMemoryType] = useState<MemoryType>(memory?.memory_type || 'context');
+  const [memoryType, setMemoryType] = useState<MemoryType>(
+    memory?.memory_type || 'context'
+  );
   const [importance, setImportance] = useState(memory?.importance || 0.5);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1102,13 +1155,16 @@ function MemoryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-xl bg-surface p-6">
+    <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center">
+      <div className="bg-surface w-full max-w-lg rounded-xl p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-text-heading">
             {memory ? t('agents.memory.edit') : t('agents.memory.create')}
           </h3>
-          <button onClick={onClose} className="rounded p-1 hover:bg-surface-secondary">
+          <button
+            onClick={onClose}
+            className="rounded p-1 hover:bg-surface-secondary"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1122,7 +1178,7 @@ function MemoryModal({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={4}
-              className="w-full rounded-lg border border-border bg-surface-secondary p-3 text-text-body focus:border-primary focus:outline-none"
+              className="border-border focus:border-primary w-full rounded-lg border bg-surface-secondary p-3 text-text-body focus:outline-none"
               required
             />
           </div>
@@ -1134,9 +1190,11 @@ function MemoryModal({
             <select
               value={memoryType}
               onChange={(e) => setMemoryType(e.target.value as MemoryType)}
-              className="w-full rounded-lg border border-border bg-surface-secondary p-2 text-text-body"
+              className="border-border w-full rounded-lg border bg-surface-secondary p-2 text-text-body"
             >
-              {(['fact', 'preference', 'context', 'learned'] as MemoryType[]).map((type) => (
+              {(
+                ['fact', 'preference', 'context', 'learned'] as MemoryType[]
+              ).map((type) => (
                 <option key={type} value={type}>
                   {t(MEMORY_TYPE_LABELS[type])}
                 </option>
@@ -1163,13 +1221,13 @@ function MemoryModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-text-body hover:bg-surface-secondary"
+              className="border-border rounded-lg border px-4 py-2 text-text-body hover:bg-surface-secondary"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary/90"
+              className="bg-primary text-white hover:bg-primary/90 rounded-lg px-4 py-2"
             >
               {t('common.save')}
             </button>
@@ -1184,6 +1242,7 @@ function MemoryModal({
 **Step 2: Add translations**
 
 In your i18n files, add these keys:
+
 ```json
 {
   "agents": {
@@ -1218,6 +1277,7 @@ In your i18n files, add these keys:
 ### Task 10: Create Memory Toolkit for Agents
 
 **Files:**
+
 - Create: `backend/app/agent/toolkit/memory_toolkit.py`
 
 **Step 1: Write the toolkit**
@@ -1409,6 +1469,7 @@ class MemoryToolkit(AbstractToolkit):
 ### Task 11: Context Injection Helper
 
 **Files:**
+
 - Modify: `backend/app/service/memory_service.py`
 
 **Step 1: Add context injection method**
@@ -1460,25 +1521,26 @@ async def get_context_for_agent(
 
 ## Resumo do Plano
 
-| Task | Descrição | Arquivos |
-|------|-----------|----------|
-| 1 | MemoryType Enum | `backend/app/model/enums.py` |
-| 2 | Memory Models | `backend/app/model/memory.py` |
-| 3 | Memory Service (CRUD + Qdrant) | `backend/app/service/memory_service.py` |
-| 4 | Memory Controller (REST) | `backend/app/controller/memory_controller.py` |
-| 5 | BM25 Dependency | `backend/pyproject.toml` |
-| 6 | BM25 Search | `backend/app/service/memory_service.py` |
-| 7 | Hybrid Search (RRF) | `backend/app/service/memory_service.py` |
-| 8 | Memory Store (Zustand) | `src/store/memoryStore.ts` |
-| 9 | Memory UI | `src/pages/Agents/Memory.tsx` |
-| 10 | Memory Toolkit | `backend/app/agent/toolkit/memory_toolkit.py` |
-| 11 | Context Injection | `backend/app/service/memory_service.py` |
+| Task | Descrição                      | Arquivos                                      |
+| ---- | ------------------------------ | --------------------------------------------- |
+| 1    | MemoryType Enum                | `backend/app/model/enums.py`                  |
+| 2    | Memory Models                  | `backend/app/model/memory.py`                 |
+| 3    | Memory Service (CRUD + Qdrant) | `backend/app/service/memory_service.py`       |
+| 4    | Memory Controller (REST)       | `backend/app/controller/memory_controller.py` |
+| 5    | BM25 Dependency                | `backend/pyproject.toml`                      |
+| 6    | BM25 Search                    | `backend/app/service/memory_service.py`       |
+| 7    | Hybrid Search (RRF)            | `backend/app/service/memory_service.py`       |
+| 8    | Memory Store (Zustand)         | `src/store/memoryStore.ts`                    |
+| 9    | Memory UI                      | `src/pages/Agents/Memory.tsx`                 |
+| 10   | Memory Toolkit                 | `backend/app/agent/toolkit/memory_toolkit.py` |
+| 11   | Context Injection              | `backend/app/service/memory_service.py`       |
 
 ---
 
 ## Próximos Passos
 
 Após completar a implementação:
+
 1. Testar endpoints com curl/Postman
 2. Testar UI manualmente
 3. Integrar toolkit nos agentes existentes

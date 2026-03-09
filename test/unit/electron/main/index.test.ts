@@ -1291,7 +1291,10 @@ describe('Electron Main Index Functions', () => {
      */
     const path = require('node:path');
 
-    const isPathAllowed = (filePath: string, allowedBases: string[]): boolean => {
+    const isPathAllowed = (
+      filePath: string,
+      allowedBases: string[]
+    ): boolean => {
       const resolvedPath = path.resolve(filePath);
       return allowedBases.some((base: string) => {
         const resolvedBase = path.resolve(base);
@@ -1305,11 +1308,15 @@ describe('Electron Main Index Functions', () => {
     const ALLOWED_BASES = ['/home/user', '/mock/user/data', '/tmp'];
 
     it('should allow files within home directory', () => {
-      expect(isPathAllowed('/home/user/documents/file.pdf', ALLOWED_BASES)).toBe(true);
+      expect(
+        isPathAllowed('/home/user/documents/file.pdf', ALLOWED_BASES)
+      ).toBe(true);
     });
 
     it('should allow files within userData directory', () => {
-      expect(isPathAllowed('/mock/user/data/cache/image.png', ALLOWED_BASES)).toBe(true);
+      expect(
+        isPathAllowed('/mock/user/data/cache/image.png', ALLOWED_BASES)
+      ).toBe(true);
     });
 
     it('should allow files within temp directory', () => {
@@ -1343,7 +1350,9 @@ describe('Electron Main Index Functions', () => {
 
     it('should block paths that are prefixes but not subdirectories', () => {
       // /home/user-evil should NOT match /home/user
-      expect(isPathAllowed('/home/user-evil/file.txt', ALLOWED_BASES)).toBe(false);
+      expect(isPathAllowed('/home/user-evil/file.txt', ALLOWED_BASES)).toBe(
+        false
+      );
     });
   });
 

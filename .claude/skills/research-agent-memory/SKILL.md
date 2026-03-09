@@ -21,6 +21,7 @@ Esta skill pesquisa automaticamente as melhores práticas e arquiteturas para me
 ### Passo 1: Definir Tema de Pesquisa
 
 O tema deve ser específico e relacionado à memória de agentes de IA. Exemplos:
+
 - "Agent memory architectures patterns"
 - "Context window optimization techniques"
 - "Vector database for AI agent memory"
@@ -61,6 +62,7 @@ Use o MCP NotebookLM se disponível, ou forneça instruções para o usuário cr
 ### Passo 4: Documentar Descobertas
 
 Crie um arquivo de documentação em `docs/research/` com:
+
 - Título da pesquisa
 - Fontes encontradas (links)
 - Principais descobertas
@@ -100,6 +102,7 @@ Se o usuário quiser melhorar a memória do projeto,.execute estas pesquisas:
 ```
 
 Irá:
+
 1. Pesquisar arquiteturas de memória para agentes
 2. Encontrar implementações populares (LangChain, AutoGen, etc.)
 3. Comparar soluções de vector stores

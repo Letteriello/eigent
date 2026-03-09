@@ -23,6 +23,10 @@
         "--project",
         "C:/Users/gabri/Desktop/eigent"
       ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-playwright"]
     }
   }
 }

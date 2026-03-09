@@ -203,6 +203,11 @@ describe('Installation Store', () => {
         await result.current.performInstallation();
       });
 
+      // Simulate backend ready - completeSetup changes state to 'completed'
+      act(() => {
+        result.current.completeSetup();
+      });
+
       // Wait for the mocked installation to complete
       await vi.waitFor(
         () => {
@@ -212,7 +217,7 @@ describe('Installation Store', () => {
       );
 
       expect(electronAPI.checkAndInstallDepsOnUpdate).toHaveBeenCalled();
-      expect(mockSetInitState).toHaveBeenCalledWith('done');
+      // Note: setInitState('done') is called by useInstallationSetup hook, not by the store
     });
 
     it('should handle installation failure', async () => {
@@ -242,6 +247,11 @@ describe('Installation Store', () => {
 
       await act(async () => {
         await result.current.performInstallation();
+      });
+
+      // Simulate backend ready
+      act(() => {
+        result.current.completeSetup();
       });
 
       await vi.waitFor(
@@ -438,6 +448,11 @@ describe('Installation Store', () => {
 
       await act(async () => {
         await result.current.performInstallation();
+      });
+
+      // Simulate backend ready
+      act(() => {
+        result.current.completeSetup();
       });
 
       await vi.waitFor(
