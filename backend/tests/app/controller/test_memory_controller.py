@@ -27,9 +27,8 @@ from app.controller.memory_controller import (
     search_memories,
     update_memory,
 )
-from app.model.enums import MemoryScope, MemoryType
+from app.model.enums import AccessLevel, MemoryType
 from app.model.memory import (
-    MemoryContextRequest,
     MemoryCreate,
     MemoryResponse,
     MemorySearchQuery,
@@ -48,7 +47,7 @@ class TestMemoryController:
             id="test123",
             content="Test memory content",
             memory_type=MemoryType.fact,
-            scope=MemoryScope.project,
+            access_level=AccessLevel.team,
             project_id="project-1",
             metadata={},
             agent_id=None,
@@ -68,7 +67,7 @@ class TestMemoryController:
         return MemoryCreate(
             content="Test memory content",
             memory_type=MemoryType.fact,
-            scope=MemoryScope.project,
+            access_level=AccessLevel.team,
             project_id="project-1",
             metadata={},
         )
@@ -76,7 +75,7 @@ class TestMemoryController:
     @pytest.mark.asyncio
     async def test_create_memory_global_scope(self, mock_memory_response):
         """Test creating a memory with global scope."""
-        mock_memory_response.scope = MemoryScope.global_
+        mock_memory_response.access_level =AccessLevel.global_
         mock_memory_response.project_id = None
 
         with patch(
@@ -91,14 +90,14 @@ class TestMemoryController:
             memory_create = MemoryCreate(
                 content="My name is John",
                 memory_type=MemoryType.preference,
-                scope=MemoryScope.global_,
+                access_level=AccessLevel.global_,
                 project_id=None,
             )
 
             result = await create_memory(memory_create)
 
             assert result.id == "test123"
-            assert result.scope == MemoryScope.global_
+            assert result.access_level == AccessLevel.global_
             mock_service.create_memory.assert_called_once_with(memory_create)
 
     @pytest.mark.asyncio
@@ -116,20 +115,20 @@ class TestMemoryController:
             memory_create = MemoryCreate(
                 content="This is a project-specific memory",
                 memory_type=MemoryType.context,
-                scope=MemoryScope.project,
+                access_level=AccessLevel.team,
                 project_id="project-123",
             )
 
             result = await create_memory(memory_create)
 
             assert result.id == "test123"
-            assert result.scope == MemoryScope.project
+            assert result.access_level == AccessLevel.team
             assert result.project_id == "project-1"
 
     @pytest.mark.asyncio
     async def test_create_memory_agent_scope(self, mock_memory_response):
         """Test creating a memory with agent scope."""
-        mock_memory_response.scope = MemoryScope.agent
+        mock_memory_response.access_level =AccessLevel.private
         mock_memory_response.agent_id = "agent-1"
 
         with patch(
@@ -144,14 +143,14 @@ class TestMemoryController:
             memory_create = MemoryCreate(
                 content="Agent-specific task memory",
                 memory_type=MemoryType.learned,
-                scope=MemoryScope.agent,
+                access_level=AccessLevel.private,
                 project_id="project-123",
                 agent_id="agent-1",
             )
 
             result = await create_memory(memory_create)
 
-            assert result.scope == MemoryScope.agent
+            assert result.access_level == AccessLevel.private
             assert result.agent_id == "agent-1"
 
     @pytest.mark.asyncio
@@ -200,11 +199,11 @@ class TestMemoryController:
             )
             mock_get_service.return_value = mock_service
 
-            result = await list_memories(scope=MemoryScope.global_, limit=50)
+            result = await list_memories(access_level=AccessLevel.global_, limit=50)
 
             assert len(result) == 1
             mock_service.list_memories.assert_called_once_with(
-                scope=MemoryScope.global_,
+                access_level=AccessLevel.global_,
                 project_id=None,
                 memory_type=None,
                 agent_id=None,
@@ -226,12 +225,12 @@ class TestMemoryController:
             mock_get_service.return_value = mock_service
 
             result = await list_memories(
-                scope=MemoryScope.project, project_id="project-1", limit=20
+                access_level=AccessLevel.team, project_id="project-1", limit=20
             )
 
             assert len(result) == 1
             mock_service.list_memories.assert_called_once_with(
-                scope=MemoryScope.project,
+                access_level=AccessLevel.team,
                 project_id="project-1",
                 memory_type=None,
                 agent_id=None,
@@ -333,7 +332,7 @@ class TestMemoryClassifier:
 
         scope, mem_type = classifier.classify(content)
 
-        assert scope == MemoryScope.global_
+        assert scope == AccessLevel.global_
         assert mem_type in [MemoryType.preference, MemoryType.fact]
 
     def test_classify_global_personal(self, classifier):
@@ -342,7 +341,7 @@ class TestMemoryClassifier:
 
         scope, mem_type = classifier.classify(content)
 
-        assert scope == MemoryScope.global_
+        assert scope == AccessLevel.global_
 
     def test_classify_project_context(self, classifier):
         """Test classifying project context content."""
@@ -350,7 +349,7 @@ class TestMemoryClassifier:
 
         scope, mem_type = classifier.classify(content)
 
-        assert scope in [MemoryScope.project, MemoryScope.global_]
+        assert scope in [AccessLevel.team, AccessLevel.global_]
 
     def test_classify_agent_task(self, classifier):
         """Test classifying agent-specific task content."""
@@ -358,7 +357,7 @@ class TestMemoryClassifier:
 
         scope, mem_type = classifier.classify(content)
 
-        assert scope == MemoryScope.agent
+        assert scope == AccessLevel.private
 
     def test_should_save_memory_indicator(self, classifier):
         """Test detecting save indicators in content."""
@@ -384,7 +383,7 @@ class TestMemoryModels:
         memory = MemoryCreate(
             content="Test content",
             memory_type=MemoryType.preference,
-            scope=MemoryScope.global_,
+            access_level=AccessLevel.global_,
             project_id=None,
             agent_id="agent-1",
             session_id="session-1",
@@ -392,35 +391,11 @@ class TestMemoryModels:
         )
 
         assert memory.content == "Test content"
-        assert memory.scope == MemoryScope.global_
+        assert memory.access_level == AccessLevel.global_
         assert memory.agent_id == "agent-1"
 
     def test_memory_create_default_scope(self):
-        """Test MemoryCreate default scope is project."""
+        """Test MemoryCreate default scope is private."""
         memory = MemoryCreate(content="Test content")
 
-        assert memory.scope == MemoryScope.project
-
-    def test_memory_context_request(self):
-        """Test MemoryContextRequest model."""
-        request = MemoryContextRequest(
-            project_id="project-123",
-            agent_id="agent-1",
-            include_global=True,
-            include_project=True,
-            include_agent=True,
-            limit=30,
-        )
-
-        assert request.project_id == "project-123"
-        assert request.include_global is True
-        assert request.limit == 30
-
-    def test_memory_context_request_defaults(self):
-        """Test MemoryContextRequest default values."""
-        request = MemoryContextRequest(project_id="project-123")
-
-        assert request.include_global is True
-        assert request.include_project is True
-        assert request.include_agent is True
-        assert request.limit == 50
+        assert memory.access_level == AccessLevel.private

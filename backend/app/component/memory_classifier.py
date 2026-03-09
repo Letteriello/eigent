@@ -18,7 +18,7 @@ import logging
 import re
 from typing import Any
 
-from app.model.enums import MemoryScope, MemoryType
+from app.model.enums import AccessLevel, MemoryType
 
 logger = logging.getLogger("memory_classifier")
 
@@ -155,14 +155,14 @@ class MemoryClassifier:
         """
         self._llm_provider = llm_provider
 
-    def classify(self, content: str) -> tuple[MemoryScope, MemoryType]:
+    def classify(self, content: str) -> tuple[AccessLevel, MemoryType]:
         """Classify memory content to determine scope and type.
 
         Args:
             content: The text content to classify
 
         Returns:
-            Tuple of (MemoryScope, MemoryType)
+            Tuple of (AccessLevel, MemoryType)
         """
         content_lower = content.lower()
 
@@ -172,25 +172,25 @@ class MemoryClassifier:
         logger.debug(f"Classified as scope={scope}, type={mem_type}")
         return scope, mem_type
 
-    def _detect_scope(self, content: str) -> MemoryScope:
+    def _detect_scope(self, content: str) -> AccessLevel:
         """Detect memory scope using keyword matching.
 
         Args:
             content: Lowercased content
 
         Returns:
-            Detected MemoryScope
+            Detected AccessLevel
         """
         global_score = self._match_keywords(GLOBAL_KEYWORDS, content)
         project_score = self._match_keywords(PROJECT_KEYWORDS, content)
         agent_score = self._match_keywords(AGENT_KEYWORDS, content)
 
         if global_score > project_score and global_score > agent_score:
-            return MemoryScope.global_
+            return AccessLevel.global_
         elif project_score > agent_score:
-            return MemoryScope.project
+            return AccessLevel.team
         else:
-            return MemoryScope.agent
+            return AccessLevel.private
 
     def _detect_type(self, content: str) -> MemoryType:
         """Detect memory type using keyword matching.
@@ -266,14 +266,14 @@ class MemoryClassifier:
 
     async def classify_with_llm(
         self, content: str
-    ) -> tuple[MemoryScope, MemoryType]:
+    ) -> tuple[AccessLevel, MemoryType]:
         """Classify using LLM as fallback when keyword matching is uncertain.
 
         Args:
             content: The text content to classify
 
         Returns:
-            Tuple of (MemoryScope, MemoryType)
+            Tuple of (AccessLevel, MemoryType)
         """
         if self._llm_provider is None:
             logger.warning("No LLM provider available, using keyword fallback")
@@ -285,7 +285,7 @@ class MemoryClassifier:
 
             if "|" in response:
                 scope_str, type_str = response.strip().split("|")
-                scope = MemoryScope(scope_str.lower())
+                scope = AccessLevel(scope_str.lower())
                 mem_type = MemoryType(type_str.lower())
                 return scope, mem_type
         except Exception as e:

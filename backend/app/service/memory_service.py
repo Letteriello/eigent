@@ -89,11 +89,12 @@ _EMBEDDING_CACHE_MAX_SIZE = 5000
 # Search result cache (TTL: 5 minutes, max 500 queries)
 _search_cache = TTLCache(ttl=300, maxsize=500)
 
-# BM25 index cache (TTL: 1 minute - rebuilds frequently with new memories)
+# BM25 index cache (TTL: 1 minute - rebuilds when memories change)
 _bm25_index_cache: tuple | None = None
 _bm25_index_timestamp: float = 0
+_bm25_memory_count: int = 0  # Track memory count for invalidation
 _BM25_INDEX_TTL = 60  # 1 minute
-from app.model.enums import MemoryType
+from app.model.enums import AccessLevel, MemoryStatus, MemoryType
 from app.model.memory import (
     CleanupResult,
     ConsolidateResult,
@@ -122,6 +123,11 @@ logger = logging.getLogger("memory_service")
 DEFAULT_MEMORY_STORAGE_PATH = "~/.eigent/memory_storage"
 DEFAULT_COLLECTION_NAME = "agent_memory"
 EMBEDDING_DIM = 1536  # OpenAI text-embedding-ada-002 dimension
+
+# Backup constants
+BACKUP_DIR = "~/.eigent/backups/memories"
+BACKUP_MEMORY_THRESHOLD = 50  # Auto-backup every 50 memories
+BACKUP_MAX_KEEP = 7  # Keep last 7 backups
 
 
 class MemoryService:
@@ -156,6 +162,55 @@ class MemoryService:
         self._memories: dict[str, dict[str, Any]] = {}
         # Encryption service for sensitive content
         self._encryption_service: EncryptionService | None = None
+        # Backup tracking
+        self._last_daily_backup: datetime | None = None
+        self._memory_count_at_last_backup = 0
+        # Load existing memories from Qdrant on initialization
+        self._load_memories_from_storage()
+
+    def _load_memories_from_storage(self) -> None:
+        """Load existing memories from Qdrant storage into memory dict.
+
+        This ensures persistence across app restarts - the in-memory dict
+        is populated from the persistent Qdrant storage on startup.
+        """
+        try:
+            storage = self._get_storage()
+            # Query all memories from Qdrant (using high top_k to get all)
+            results = storage.query(top_k=10000)
+
+            for result in results:
+                payload = result.get("payload", {})
+                if payload and "id" in payload:
+                    memory_id = payload["id"]
+                    # Convert ISO strings back to datetime
+                    created_at = payload.get("created_at")
+                    updated_at = payload.get("updated_at")
+
+                    if isinstance(created_at, str):
+                        created_at = datetime.fromisoformat(created_at)
+                    if isinstance(updated_at, str):
+                        updated_at = datetime.fromisoformat(updated_at)
+
+                    self._memories[memory_id] = {
+                        "id": memory_id,
+                        "content": payload.get("content", ""),
+                        "content_plaintext": payload.get("content_plaintext"),
+                        "is_encrypted": payload.get("is_encrypted", False),
+                        "memory_type": payload.get("memory_type", "fact"),
+                        "metadata": payload.get("metadata", {}),
+                        "agent_id": payload.get("agent_id"),
+                        "session_id": payload.get("session_id"),
+                        "importance": payload.get("importance", 1.0),
+                        "created_at": created_at,
+                        "updated_at": updated_at,
+                    }
+
+            logger.info(f"Loaded {len(self._memories)} memories from Qdrant storage")
+
+        except Exception as e:
+            logger.warning(f"Failed to load memories from storage: {e}")
+            # Continue with empty dict - app can still function
 
     def _get_encryption_service(self) -> EncryptionService:
         """Get or initialize the encryption service."""
@@ -171,11 +226,6 @@ class MemoryService:
                 raise ValueError("OPENAI_API_KEY is required for memory embeddings")
             self._embedding_model = OpenAIEmbedding(api_key=api_key)
         return self._embedding_model
-
-
-# Module-level cache for embeddings (works across all MemoryService instances)
-_embedding_cache: dict[str, tuple] = {}
-_EMBEDDING_CACHE_MAX_SIZE = 5000
 
 
 def _get_embedding_cached(text: str, get_embedding_fn) -> tuple:
@@ -239,14 +289,45 @@ async def _get_embedding(self, text: str) -> list[float]:
             metadata=metadata,
             agent_id=memory_data.get("agent_id"),
             session_id=memory_data.get("session_id"),
+            project_id=memory_data.get("project_id"),
+            access_level=AccessLevel(memory_data.get("access_level", "private")),
             importance=memory_data.get("importance", 1.0),
             is_summary=metadata.get("is_summary", False),
             summary_level=metadata.get("summary_level"),
             source_memory_ids=metadata.get("source_memory_ids", []),
             is_encrypted=memory_data.get("is_encrypted", False),
+            status=MemoryStatus(memory_data.get("status", "active")),
+            last_accessed_at=memory_data.get("last_accessed_at"),
             created_at=memory_data["created_at"],
             updated_at=memory_data["updated_at"],
         )
+
+    def _update_status_on_access(self, memory_data: dict[str, Any]) -> dict[str, Any]:
+        """Update lifecycle status when memory is accessed.
+
+        Transitions:
+        - new → active (first access)
+        - stale → active (reactivation via recall)
+
+        Args:
+            memory_data: Internal memory dict
+
+        Returns:
+            Updated memory_data with status and last_accessed_at
+        """
+        now = datetime.utcnow()
+        current_status = memory_data.get("status", "active")
+
+        # Reactivate stale or promote new to active
+        if current_status in ("new", "stale"):
+            memory_data["status"] = "active"
+            memory_data["updated_at"] = now
+            logger.debug(f"Memory {memory_data['id']}: {current_status} → active")
+
+        # Always update last_accessed_at
+        memory_data["last_accessed_at"] = now
+
+        return memory_data
 
     async def create_memory(self, memory: MemoryCreate) -> MemoryResponse:
         """Create a new memory entry.
@@ -284,7 +365,10 @@ async def _get_embedding(self, text: str) -> list[float]:
             "metadata": memory.metadata,
             "agent_id": memory.agent_id,
             "session_id": memory.session_id,
+            "project_id": memory.project_id,
+            "access_level": memory.access_level.value if memory.access_level else "private",
             "importance": memory.metadata.get("importance", 1.0),
+            "status": "new",  # Lifecycle: start as new
             "created_at": now,
             "updated_at": now,
         }
@@ -310,6 +394,8 @@ async def _get_embedding(self, text: str) -> list[float]:
                         "metadata": memory.metadata,
                         "agent_id": memory.agent_id,
                         "session_id": memory.session_id,
+                        "project_id": memory.project_id,
+                        "access_level": memory.access_level.value if memory.access_level else "private",
                         "importance": memory_data["importance"],
                         "created_at": now.isoformat(),
                         "updated_at": now.isoformat(),
@@ -321,7 +407,16 @@ async def _get_embedding(self, text: str) -> list[float]:
             logger.warning(f"Failed to store memory in Qdrant: {e}")
             # Continue with in-memory storage
 
+        # Invalidate search caches when new memory is created
+        _search_cache.clear()
+        global _bm25_memory_count
+        _bm25_memory_count = 0  # Force BM25 rebuild
+
         logger.info(f"Created memory: {memory_id}")
+
+        # Auto-backup check (after creating memory)
+        await self._check_and_create_backup()
+
         return self._memory_to_response(memory_data)
 
     async def get_memory(self, memory_id: str) -> MemoryResponse | None:
@@ -335,6 +430,8 @@ async def _get_embedding(self, text: str) -> list[float]:
         """
         memory_data = self._memories.get(memory_id)
         if memory_data:
+            # Lifecycle: update status on access (new → active, stale → active)
+            memory_data = self._update_status_on_access(memory_data)
             # Decrypt if needed
             return self._decrypt_memory_response(memory_data)
 
@@ -370,6 +467,8 @@ async def _get_embedding(self, text: str) -> list[float]:
                         "agent_id": payload.get("agent_id"),
                         "session_id": payload.get("session_id"),
                         "importance": payload.get("importance", 1.0),
+                        "status": payload.get("status", "active"),
+                        "last_accessed_at": datetime.fromisoformat(payload["last_accessed_at"]) if payload.get("last_accessed_at") else None,
                         "created_at": datetime.fromisoformat(
                             payload.get("created_at", datetime.utcnow().isoformat())
                         ),
@@ -377,6 +476,8 @@ async def _get_embedding(self, text: str) -> list[float]:
                             payload.get("updated_at", datetime.utcnow().isoformat())
                         ),
                     }
+                    # Lifecycle: update status on access
+                    memory_data = self._update_status_on_access(memory_data)
                     self._memories[memory_id] = memory_data
                     return self._memory_to_response(memory_data)
         except Exception as e:
@@ -435,6 +536,10 @@ async def _get_embedding(self, text: str) -> list[float]:
             memory_data["memory_type"] = update.memory_type.value
         if update.metadata is not None:
             memory_data["metadata"] = update.metadata
+        if update.access_level is not None:
+            memory_data["access_level"] = update.access_level.value
+        if update.project_id is not None:
+            memory_data["project_id"] = update.project_id
         memory_data["updated_at"] = now
 
         self._memories[memory_id] = memory_data
@@ -464,6 +569,11 @@ async def _get_embedding(self, text: str) -> list[float]:
         except Exception as e:
             logger.warning(f"Failed to update memory in Qdrant: {e}")
 
+        # Invalidate search caches when memory is updated
+        _search_cache.clear()
+        global _bm25_memory_count
+        _bm25_memory_count = 0  # Force BM25 rebuild
+
         logger.info(f"Updated memory: {memory_id}")
         return self._memory_to_response(memory_data)
 
@@ -476,20 +586,37 @@ async def _get_embedding(self, text: str) -> list[float]:
         Returns:
             True if deleted, False if not found
         """
+        deleted_from_dict = False
         if memory_id in self._memories:
             del self._memories[memory_id]
-            logger.info(f"Deleted memory: {memory_id}")
-            return True
+            deleted_from_dict = True
+            logger.info(f"Deleted memory from dict: {memory_id}")
 
-        # Try Qdrant deletion (Qdrant doesn't have direct delete by ID,
-        # would need to implement via upsert with empty vector or collection management)
-        logger.info(f"Memory not found for deletion: {memory_id}")
-        return False
+        # Also delete from Qdrant for persistence
+        deleted = False
+        try:
+            storage = self._get_storage()
+            await asyncio.to_thread(storage.delete, ids=[memory_id])
+            logger.info(f"Deleted memory from Qdrant: {memory_id}")
+            deleted = True
+        except Exception as e:
+            logger.warning(f"Failed to delete memory from Qdrant: {e}")
+            deleted = deleted_from_dict
+
+        # Invalidate search caches when memory is deleted
+        if deleted:
+            _search_cache.clear()
+            global _bm25_memory_count
+            _bm25_memory_count = 0  # Force BM25 rebuild
+
+        return deleted
 
     async def list_memories(
         self,
         memory_type: MemoryType | None = None,
         agent_id: str | None = None,
+        project_id: str | None = None,
+        access_level: AccessLevel | None = None,
         limit: int = 100,
     ) -> list[MemoryResponse]:
         """List memories with optional filters.
@@ -497,6 +624,8 @@ async def _get_embedding(self, text: str) -> list[float]:
         Args:
             memory_type: Filter by memory type
             agent_id: Filter by agent ID
+            project_id: Filter by project ID for multi-agent scoping
+            access_level: Filter by access level (private, team, global)
             limit: Maximum number of results
 
         Returns:
@@ -504,16 +633,90 @@ async def _get_embedding(self, text: str) -> list[float]:
         """
         results = []
 
+        # First try to get from dict cache
         for memory_data in self._memories.values():
             if memory_type and memory_data["memory_type"] != memory_type.value:
                 continue
             if agent_id and memory_data.get("agent_id") != agent_id:
                 continue
+            if project_id and memory_data.get("project_id") != project_id:
+                continue
+            if access_level:
+                memory_access = memory_data.get("access_level", "private")
+                # Filter based on access hierarchy
+                access_hierarchy = {"global": 0, "team": 1, "private": 2}
+                requested = access_hierarchy.get(access_level.value, 2)
+                memory_lvl = access_hierarchy.get(memory_access, 2)
+                if memory_lvl > requested:
+                    continue
             # Decrypt if needed before returning
             results.append(self._decrypt_memory_response(memory_data))
 
             if len(results) >= limit:
                 break
+
+        # If no results from dict or dict is empty, fetch from Qdrant
+        if not results:
+            try:
+                storage = self._get_storage()
+                # Get all from Qdrant (using limit * 2 for safety)
+                qdrant_results = await asyncio.to_thread(
+                    storage.query,
+                    query_filter=None,  # No filter, get all
+                    top_k=limit * 2,
+                )
+                for result in qdrant_results:
+                    payload = result.get("payload", {})
+                    if not payload:
+                        continue
+                    memory_id = payload.get("id", "")
+                    if memory_type and payload.get("memory_type") != memory_type.value:
+                        continue
+                    if agent_id and payload.get("agent_id") != agent_id:
+                        continue
+                    if project_id and payload.get("project_id") != project_id:
+                        continue
+                    if access_level:
+                        memory_access = payload.get("access_level", "private")
+                        access_hierarchy = {"global": 0, "team": 1, "private": 2}
+                        requested = access_hierarchy.get(access_level.value, 2)
+                        memory_lvl = access_hierarchy.get(memory_access, 2)
+                        if memory_lvl > requested:
+                            continue
+
+                    # Decrypt if needed
+                    is_encrypted = payload.get("is_encrypted", False)
+                    content = payload.get("content", "")
+                    if is_encrypted:
+                        encryption_service = self._get_encryption_service()
+                        if encryption_service.is_enabled:
+                            try:
+                                content = encryption_service.decrypt(content)
+                            except Exception as e:
+                                logger.warning(f"Failed to decrypt memory content: {e}")
+
+                    memory_data = {
+                        "id": memory_id,
+                        "content": content,
+                        "is_encrypted": is_encrypted,
+                        "memory_type": payload.get("memory_type", "fact"),
+                        "metadata": payload.get("metadata", {}),
+                        "agent_id": payload.get("agent_id"),
+                        "session_id": payload.get("session_id"),
+                        "importance": payload.get("importance", 1.0),
+                        "created_at": datetime.fromisoformat(
+                            payload.get("created_at", datetime.utcnow().isoformat())
+                        ),
+                        "updated_at": datetime.fromisoformat(
+                            payload.get("updated_at", datetime.utcnow().isoformat())
+                        ),
+                    }
+                    results.append(self._memory_to_response(memory_data))
+
+                    if len(results) >= limit:
+                        break
+            except Exception as e:
+                logger.warning(f"Failed to fetch memories from Qdrant: {e}")
 
         # Sort by created_at descending (newest first)
         results.sort(key=lambda m: m.created_at, reverse=True)
@@ -577,10 +780,30 @@ async def _get_embedding(self, text: str) -> list[float]:
             ):
                 continue
 
+            # Apply project_id filter
+            if (
+                search_query.project_id
+                and memory_data.get("project_id") != search_query.project_id
+            ):
+                continue
+
+            # Apply access_level filter
+            if search_query.access_level:
+                memory_access_level = memory_data.get("access_level", "private")
+                # Include memories that are accessible at the requested level or more permissive
+                access_hierarchy = {"global": 0, "team": 1, "private": 2}
+                requested_level = access_hierarchy.get(search_query.access_level.value, 2)
+                memory_level = access_hierarchy.get(memory_access_level, 2)
+                if memory_level > requested_level:
+                    continue
+
             # Apply similarity threshold
             similarity = combined[memory_id]
             if similarity < search_query.similarity_threshold:
                 continue
+
+            # Update lifecycle status on access (reactivate stale → active)
+            memory_data = self._update_status_on_access(memory_data)
 
             # Decrypt if needed before returning
             filtered.append(self._decrypt_memory_response(memory_data))
@@ -650,7 +873,7 @@ async def _get_embedding(self, text: str) -> list[float]:
         Returns:
             Dict mapping memory_id to BM25 score
         """
-        global _bm25_index_cache, _bm25_index_timestamp
+        global _bm25_index_cache, _bm25_index_timestamp, _bm25_memory_count
 
         try:
             from rank_bm25 import BM25Okapi
@@ -661,12 +884,18 @@ async def _get_embedding(self, text: str) -> list[float]:
         if not self._memories:
             return {}
 
-        # Check if BM25 index needs rebuild
+        # Check if BM25 index needs rebuild (TTL or memory count changed)
         current_time = time.time()
+        current_memory_count = len(self._memories)
         needs_rebuild = (
             _bm25_index_cache is None
             or current_time - _bm25_index_timestamp > _BM25_INDEX_TTL
+            or current_memory_count != _bm25_memory_count
         )
+
+        # Update memory count tracker
+        if current_memory_count != _bm25_memory_count:
+            _bm25_memory_count = current_memory_count
 
         if needs_rebuild:
             # Tokenize all memory contents
@@ -710,7 +939,7 @@ async def _get_embedding(self, text: str) -> list[float]:
         vector_results: dict[str, float],
         bm25_results: dict[str, float],
         top_k: int,
-        k: float = 60.0,
+        k: float = 15.0,
     ) -> dict[str, float]:
         """Combine search results using Reciprocal Rank Fusion.
 
@@ -718,7 +947,7 @@ async def _get_embedding(self, text: str) -> list[float]:
             vector_results: Vector search results (memory_id -> score)
             bm25_results: BM25 search results (memory_id -> score)
             top_k: Number of results to return
-            k: RRF parameter (higher = more weight to lower ranks)
+            k: RRF parameter (default 15 - appropriate for <1000 documents)
 
         Returns:
             Combined and ranked results
@@ -751,16 +980,39 @@ async def _get_embedding(self, text: str) -> list[float]:
         by_type: dict[str, int] = {}
         by_agent: dict[str, int] = {}
 
-        for memory_data in self._memories.values():
-            mem_type = memory_data["memory_type"]
-            by_type[mem_type] = by_type.get(mem_type, 0) + 1
+        # Use dict as primary source if it has data
+        if self._memories:
+            for memory_data in self._memories.values():
+                mem_type = memory_data["memory_type"]
+                by_type[mem_type] = by_type.get(mem_type, 0) + 1
 
-            agent_id = memory_data.get("agent_id")
-            if agent_id:
-                by_agent[agent_id] = by_agent.get(agent_id, 0) + 1
+                agent_id = memory_data.get("agent_id")
+                if agent_id:
+                    by_agent[agent_id] = by_agent.get(agent_id, 0) + 1
+        else:
+            # Fallback to Qdrant if dict is empty
+            try:
+                storage = self._get_storage()
+                results = await asyncio.to_thread(
+                    storage.query,
+                    query_filter=None,
+                    top_k=10000,  # Get all
+                )
+                for result in results:
+                    payload = result.get("payload", {})
+                    if not payload:
+                        continue
+                    mem_type = payload.get("memory_type", "fact")
+                    by_type[mem_type] = by_type.get(mem_type, 0) + 1
+
+                    agent_id = payload.get("agent_id")
+                    if agent_id:
+                        by_agent[agent_id] = by_agent.get(agent_id, 0) + 1
+            except Exception as e:
+                logger.warning(f"Failed to get stats from Qdrant: {e}")
 
         return MemoryStats(
-            total_memories=len(self._memories),
+            total_memories=len(self._memories) or sum(by_type.values()),
             by_type=by_type,
             by_agent=by_agent,
             deduplication_count=self._deduplication_count,
@@ -954,6 +1206,82 @@ async def _get_embedding(self, text: str) -> list[float]:
             freed_space=freed_space,
         )
 
+    async def daily_lifecycle_cleanup(
+        self,
+        stale_threshold_days: int = 14,
+        retention_days: int = 30,
+        archive_retention_days: int = 60,
+    ) -> dict[str, int]:
+        """Daily lifecycle cleanup - transitions memories through lifecycle states.
+
+        Transitions:
+        - new/active → stale: not accessed for stale_threshold_days
+        - stale → archived: retention_days since creation
+        - archived → deleted: archive_retention_days since archived
+
+        Args:
+            stale_threshold_days: Days without access before marking stale
+            retention_days: Days to retain before archiving
+            archive_retention_days: Days in archived before deletion
+
+        Returns:
+            Dict with counts: stale_marked, archived, deleted
+        """
+        from datetime import timedelta
+
+        now = datetime.utcnow()
+        stale_cutoff = now - timedelta(days=stale_threshold_days)
+        retention_cutoff = now - timedelta(days=retention_days)
+        archive_cutoff = now - timedelta(days=archive_retention_days)
+
+        stale_marked = 0
+        archived = 0
+        deleted = 0
+
+        for memory_id, memory_data in list(self._memories.items()):
+            current_status = memory_data.get("status", "active")
+            created_at = memory_data.get("created_at", now)
+            last_accessed = memory_data.get("last_accessed_at", created_at)
+            archived_at = memory_data.get("archived_at")
+
+            # Transition: new/active → stale (not accessed recently)
+            if current_status in ("new", "active") and last_accessed < stale_cutoff:
+                memory_data["status"] = "stale"
+                memory_data["updated_at"] = now
+                stale_marked += 1
+                logger.debug(f"Memory {memory_id}: {current_status} → stale")
+
+            # Transition: stale → archived (retention expired)
+            elif current_status == "stale" and created_at < retention_cutoff:
+                memory_data["status"] = "archived"
+                memory_data["archived_at"] = now
+                memory_data["updated_at"] = now
+                archived += 1
+                logger.debug(f"Memory {memory_id}: stale → archived")
+
+            # Transition: archived → deleted (archive retention expired)
+            elif current_status == "archived" and archived_at and archived_at < archive_cutoff:
+                # Don't delete summaries
+                if memory_data.get("memory_type") not in ("session_summary", "consolidated"):
+                    del self._memories[memory_id]
+                    deleted += 1
+                    logger.debug(f"Memory {memory_id}: archived → deleted")
+
+        # Update metrics
+        self._cleanup_count += deleted
+        self._last_cleanup = now
+
+        logger.info(
+            f"Lifecycle cleanup: {stale_marked} marked stale, "
+            f"{archived} archived, {deleted} deleted"
+        )
+
+        return {
+            "stale_marked": stale_marked,
+            "archived": archived,
+            "deleted": deleted,
+        }
+
     async def find_duplicates(
         self, similarity_threshold: float = 0.85
     ) -> list["DuplicateCandidate"]:
@@ -1006,12 +1334,15 @@ async def _get_embedding(self, text: str) -> list[float]:
         return duplicates
 
     async def deduplicate_memories(
-        self, similarity_threshold: float = 0.9
+        self, similarity_threshold: float = 0.9, importance_guardrail: float = 0.8
     ) -> ConsolidationResult:
         """Find and merge duplicate memories based on similarity.
 
+        Uses non-destructive deduplication: creates a merged memory instead of deleting.
+
         Args:
             similarity_threshold: Minimum similarity (0-1) to consider as duplicate
+            importance_guardrail: Don't deduplicate memories with importance > this value
 
         Returns:
             Consolidation result with merge statistics
@@ -1021,28 +1352,79 @@ async def _get_embedding(self, text: str) -> list[float]:
         original_count = len(self._memories)
         duplicates = await self.find_duplicates(similarity_threshold)
         duplicates_merged = 0
+        skipped_high_importance = 0
 
-        # Merge duplicates (keep higher importance memory)
+        # Non-destructive deduplication: create merged memory instead of deleting
         for dup in duplicates:
             mem1 = self._memories.get(dup.memory_id_1)
             mem2 = self._memories.get(dup.memory_id_2)
 
             if mem1 and mem2:
-                # Keep the one with higher importance
-                if mem1.get("importance", 1.0) >= mem2.get("importance", 1.0):
-                    remove_id = dup.memory_id_1
-                else:
-                    _, remove_id = dup.memory_id_1, dup.memory_id_2
+                # Guardrail: don't deduplicate high-importance memories
+                importance1 = mem1.get("importance", 1.0)
+                importance2 = mem2.get("importance", 1.0)
 
-                if remove_id in self._memories:
-                    del self._memories[remove_id]
-                    duplicates_merged += 1
+                if importance1 > importance_guardrail or importance2 > importance_guardrail:
+                    skipped_high_importance += 1
+                    logger.debug(
+                        f"Skipping deduplication for high-importance memories: "
+                        f"{dup.memory_id_1} ({importance1}), {dup.memory_id_2} ({importance2})"
+                    )
+                    continue
+
+                # Create merged memory instead of deleting
+                now = datetime.utcnow()
+                merged_id = f"merged_{now.strftime('%Y%m%d_%H%M%S')}_{duplicates_merged}"
+
+                # Merge content with separator
+                merged_content = (
+                    f"--- Memory 1 ---\n{mem1['content']}\n\n"
+                    f"--- Memory 2 ---\n{mem2['content']}"
+                )
+
+                # Preserve metadata from both memories
+                merged_metadata = {
+                    **mem1.get("metadata", {}),
+                    **mem2.get("metadata", {}),
+                    "merged_from": [mem1["id"], mem2["id"]],
+                    "similarity_score": dup.similarity,
+                    "merge_reason": "duplicate",
+                }
+
+                # Use max importance from both
+                merged_importance = max(importance1, importance2)
+
+                # Create the merged memory
+                self._memories[merged_id] = {
+                    "id": merged_id,
+                    "content": merged_content,
+                    "memory_type": mem1.get("memory_type", "fact"),
+                    "metadata": merged_metadata,
+                    "agent_id": mem1.get("agent_id") or mem2.get("agent_id"),
+                    "session_id": mem1.get("session_id") or mem2.get("session_id"),
+                    "importance": merged_importance,
+                    "created_at": now,
+                    "updated_at": now,
+                    "status": "active",
+                }
+
+                # Delete the original memories (non-destructive: we created merged first)
+                del self._memories[mem1["id"]]
+                del self._memories[mem2["id"]]
+
+                duplicates_merged += 1
+                logger.info(
+                    f"Merged duplicate memories: {mem1['id']} + {mem2['id']} → {merged_id}"
+                )
 
         # Update tracking
         self._deduplication_count += duplicates_merged
         self._last_cleanup = datetime.utcnow()
 
-        logger.info(f"Deduplicated {duplicates_merged} memories")
+        logger.info(
+            f"Deduplicated {duplicates_merged} memories, "
+            f"skipped {skipped_high_importance} high-importance"
+        )
 
         return ConsolidationResult(
             operation="deduplication",
@@ -1177,6 +1559,122 @@ async def _get_embedding(self, text: str) -> list[float]:
             algorithm="AES-256-GCM" if self._encryption_enabled else "None",
             encrypted_memories=len(self._encrypted_memories),
         )
+
+    # ========= Backup Methods =========
+
+    def _get_backup_dir(self) -> Path:
+        """Get the backup directory path."""
+        backup_dir = Path(os.path.expanduser(BACKUP_DIR))
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        return backup_dir
+
+    async def _create_backup(self, backup_type: str = "incremental") -> Path:
+        """Create a backup of all memories.
+
+        Args:
+            backup_type: Type of backup (full, incremental, auto)
+
+        Returns:
+            Path to the created backup file
+        """
+        import gzip
+        import json
+
+        memories = list(self._memories.values())
+        export_data = {
+            "version": "1.0",
+            "exported_at": datetime.utcnow().isoformat(),
+            "backup_type": backup_type,
+            "total_memories": len(memories),
+            "memories": [
+                {
+                    "id": m.get("id"),
+                    "content": m.get("content"),
+                    "memory_type": m.get("memory_type"),
+                    "metadata": m.get("metadata", {}),
+                    "agent_id": m.get("agent_id"),
+                    "session_id": m.get("session_id"),
+                    "importance": m.get("importance", 1.0),
+                    "status": m.get("status", "active"),
+                    "created_at": m.get("created_at").isoformat() if m.get("created_at") else None,
+                    "updated_at": m.get("updated_at").isoformat() if m.get("updated_at") else None,
+                }
+                for m in memories
+            ],
+        }
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"memories_{backup_type}_{timestamp}.json.gz"
+        filepath = self._get_backup_dir() / filename
+
+        with gzip.open(filepath, "wt", encoding="utf-8") as f:
+            json.dump(export_data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"Created backup: {filepath} ({len(memories)} memories)")
+
+        # Apply rotation
+        await self._rotate_backups()
+
+        return filepath
+
+    async def _rotate_backups(self) -> int:
+        """Rotate old backups, keeping only the most recent.
+
+        Returns:
+            Number of backups removed
+        """
+        backup_dir = self._get_backup_dir()
+
+        # Get all backup files sorted by modification time
+        backups = sorted(
+            backup_dir.glob("memories_*.json.gz"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+        removed = 0
+        for old_backup in backups[BACKUP_MAX_KEEP:]:
+            try:
+                old_backup.unlink()
+                removed += 1
+                logger.info(f"Removed old backup: {old_backup}")
+            except Exception as e:
+                logger.warning(f"Failed to remove old backup {old_backup}: {e}")
+
+        return removed
+
+    async def _check_and_create_backup(self) -> None:
+        """Check if backup is needed and create if necessary.
+
+        Called after creating memories to implement automatic backup.
+        """
+        memory_count = len(self._memories)
+        memories_since_backup = memory_count - self._memory_count_at_last_backup
+
+        # Check if we need an incremental backup (every 50 new memories)
+        if memories_since_backup >= BACKUP_MEMORY_THRESHOLD:
+            logger.info(f"Auto-backup triggered: {memories_since_backup} new memories")
+            try:
+                await self._create_backup("auto")
+                self._memory_count_at_last_backup = memory_count
+            except Exception as e:
+                logger.warning(f"Auto-backup failed: {e}")
+
+    async def _check_daily_backup(self) -> None:
+        """Check if daily backup is needed.
+
+        Should be called daily (e.g., from a scheduler).
+        """
+        now = datetime.utcnow()
+
+        # Check if we haven't done a daily backup today
+        if self._last_daily_backup is None or self._last_daily_backup.date() < now.date():
+            logger.info("Daily backup triggered")
+            try:
+                await self._create_backup("daily")
+                self._last_daily_backup = now
+            except Exception as e:
+                logger.warning(f"Daily backup failed: {e}")
 
 
 # Global memory service instance

@@ -56,6 +56,38 @@ class SummaryLevel(str, Enum):
     key_facts = "key_facts"
 
 
+class MemoryStatus(str, Enum):
+    """Lifecycle status of memories.
+
+    - pending: Memory created but not yet processed
+    - new: Newly created, recently added
+    - active: Currently active and accessible
+    - stale: Not accessed recently, may be archived
+    - archived: Archived for long-term storage
+    - deleted: Soft-deleted, can be recovered
+    """
+
+    pending = "pending"
+    new = "new"
+    active = "active"
+    stale = "stale"
+    archived = "archived"
+    deleted = "deleted"
+
+
+class AccessLevel(str, Enum):
+    """Access level for multi-agent memory sharing.
+
+    - private: Only the owning agent can access
+    - team: All agents in the same project can access
+    - global: Any agent can access (cross-project)
+    """
+
+    private = "private"
+    team = "team"
+    global_ = "global"
+
+
 DEFAULT_SUMMARY_PROMPT = (
     "After completing the task, please generate"
     " a summary of the entire task completion. "

@@ -14,13 +14,24 @@
 
 """Memory controller for persistent agent memory API endpoints."""
 
+import gzip
+import json
 import logging
+import os
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.model.enums import MemoryType
+from app.model.enums import AccessLevel, MemoryType
 from app.model.memory import (
+    BackupCreate,
+    BackupInfo,
+    BackupList,
     CleanupResult,
     ConsolidateResult,
     DecryptRequest,
@@ -28,6 +39,8 @@ from app.model.memory import (
     EncryptionStatus,
     EncryptRequest,
     EncryptResult,
+    ImportRequest,
+    ImportResult,
     MemoryCreate,
     MemoryResponse,
     MemorySearchQuery,
@@ -136,17 +149,21 @@ async def delete_memory(memory_id: str):
 
 @router.get("", response_model=list[MemoryResponse], name="list memories")
 async def list_memories(
+    access_level: AccessLevel | None = None,
+    project_id: str | None = None,
     memory_type: MemoryType | None = None,
     agent_id: str | None = None,
     limit: int = 100,
 ):
     """List memories with optional filters.
 
-    Returns a list of memories, optionally filtered by type and agent.
+    Returns a list of memories, optionally filtered by type, agent, project, and access level.
     """
     try:
         service = get_memory_service()
         memories = await service.list_memories(
+            access_level=access_level,
+            project_id=project_id,
             memory_type=memory_type,
             agent_id=agent_id,
             limit=limit,
@@ -378,4 +395,245 @@ async def update_memory_settings(settings: MemorySettings):
         return updated
     except Exception as e:
         logger.error(f"Failed to update memory settings: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========= Backup Endpoints =========
+
+
+def _get_backup_dir() -> Path:
+    """Get the backup directory path."""
+    backup_dir = Path.home() / ".eigent" / "backups" / "memories"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    return backup_dir
+
+
+@router.get("/export", name="export memories")
+async def export_memories():
+    """Export all memories to JSON.
+
+    Returns a gzipped JSON file containing all memories.
+    """
+    try:
+        service = get_memory_service()
+        memories = await service.list_memories(limit=100000)
+
+        export_data = {
+            "version": "1.0",
+            "exported_at": datetime.utcnow().isoformat(),
+            "total_memories": len(memories),
+            "memories": [
+                {
+                    "id": m.id,
+                    "content": m.content,
+                    "memory_type": m.memory_type.value,
+                    "metadata": m.metadata,
+                    "agent_id": m.agent_id,
+                    "session_id": m.session_id,
+                    "importance": m.importance,
+                    "is_summary": m.is_summary,
+                    "summary_level": m.summary_level,
+                    "source_memory_ids": m.source_memory_ids,
+                    "is_encrypted": m.is_encrypted,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                    "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+                }
+                for m in memories
+            ],
+        }
+
+        # Create filename with timestamp
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"memories_export_{timestamp}.json.gz"
+        filepath = _get_backup_dir() / filename
+
+        # Write gzipped JSON
+        with gzip.open(filepath, "wt", encoding="utf-8") as f:
+            json.dump(export_data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"Exported {len(memories)} memories to {filepath}")
+        return FileResponse(
+            filepath,
+            media_type="application/gzip",
+            filename=filename,
+        )
+    except Exception as e:
+        logger.error(f"Failed to export memories: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import", response_model=ImportResult, name="import memories")
+async def import_memories(
+    file: UploadFile,
+    merge_strategy: str = "skip",
+):
+    """Import memories from a JSON file.
+
+    Accepts a gzipped JSON file with memories to upload.
+    Uses merge_strategy to determine how to handle duplicates:
+    - skip: Skip memories with existing IDs
+    - update: Update existing memories with same ID
+    - replace: Replace all existing memories
+    """
+    try:
+        # Read uploaded file
+        content = await file.read()
+
+        # Try to decompress if gzipped
+        try:
+            with gzip.decompress(content) as decompressed:
+                data = json.loads(decompressed)
+        except Exception:
+            # Try as plain JSON
+            data = json.loads(content)
+
+        memories_data = data.get("memories", [])
+        logger.info(f"Importing {len(memories_data)} memories from {file.filename}")
+
+        service = get_memory_service()
+
+        imported = 0
+        skipped = 0
+        updated = 0
+        failed = 0
+        errors = []
+
+        # Get existing memories
+        existing_memories = await service.list_memories(limit=100000)
+        existing_ids = {m.id for m in existing_memories}
+
+        for mem_data in memories_data:
+            try:
+                memory_id = mem_data.get("id")
+                memory_type_str = mem_data.get("memory_type", "fact")
+
+                # Check if exists
+                if memory_id in existing_ids:
+                    if merge_strategy == "skip":
+                        skipped += 1
+                        continue
+                    elif merge_strategy == "update":
+                        # Update existing
+                        update = MemoryUpdate(
+                            content=mem_data.get("content"),
+                            metadata=mem_data.get("metadata", {}),
+                        )
+                        await service.update_memory(memory_id, update)
+                        updated += 1
+                        continue
+
+                # Create new memory
+                create = MemoryCreate(
+                    content=mem_data.get("content", ""),
+                    memory_type=MemoryType(memory_type_str),
+                    metadata=mem_data.get("metadata", {}),
+                    agent_id=mem_data.get("agent_id"),
+                    session_id=mem_data.get("session_id"),
+                )
+                await service.create_memory(create)
+                imported += 1
+            except Exception as e:
+                failed += 1
+                errors.append(f"Failed to import {mem_data.get('id')}: {str(e)}")
+
+        logger.info(f"Import complete: {imported} imported, {skipped} skipped, {updated} updated, {failed} failed")
+        return ImportResult(
+            imported=imported,
+            skipped=skipped,
+            updated=updated,
+            failed=failed,
+            errors=errors,
+        )
+    except Exception as e:
+        logger.error(f"Failed to import memories: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/backup/list", response_model=BackupList, name="list backups")
+async def list_backups():
+    """List available backups.
+
+    Returns a list of all backup files in the backup directory.
+    """
+    try:
+        backup_dir = _get_backup_dir()
+        backups = []
+
+        for filepath in sorted(backup_dir.glob("*.gz"), reverse=True):
+            stat = filepath.stat()
+            backups.append(
+                BackupInfo(
+                    filename=filepath.name,
+                    path=str(filepath),
+                    size_bytes=stat.st_size,
+                    memory_count=0,  # Would need to read to get count
+                    created_at=datetime.fromtimestamp(stat.st_mtime),
+                    backup_type="manual" if "manual" in filepath.name else "full",
+                )
+            )
+
+        total_size = sum(b.size_bytes for b in backups)
+        return BackupList(backups=backups, total_size_bytes=total_size)
+    except Exception as e:
+        logger.error(f"Failed to list backups: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/backup/create", response_model=BackupInfo, name="create backup")
+async def create_backup(request: BackupCreate):
+    """Create a manual backup.
+
+    Creates a new backup of all memories.
+    """
+    try:
+        service = get_memory_service()
+        memories = await service.list_memories(limit=100000)
+
+        export_data = {
+            "version": "1.0",
+            "exported_at": datetime.utcnow().isoformat(),
+            "total_memories": len(memories),
+            "backup_type": request.backup_type,
+            "description": request.description,
+            "memories": [
+                {
+                    "id": m.id,
+                    "content": m.content,
+                    "memory_type": m.memory_type.value,
+                    "metadata": m.metadata,
+                    "agent_id": m.agent_id,
+                    "session_id": m.session_id,
+                    "importance": m.importance,
+                    "is_summary": m.is_summary,
+                    "summary_level": m.summary_level,
+                    "source_memory_ids": m.source_memory_ids,
+                    "is_encrypted": m.is_encrypted,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                    "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+                }
+                for m in memories
+            ],
+        }
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        backup_type_str = request.backup_type or "manual"
+        filename = f"memories_{backup_type_str}_{timestamp}.json.gz"
+        filepath = _get_backup_dir() / filename
+
+        with gzip.open(filepath, "wt", encoding="utf-8") as f:
+            json.dump(export_data, f, ensure_ascii=False, indent=2)
+
+        stat = filepath.stat()
+        logger.info(f"Created backup: {filepath} ({len(memories)} memories)")
+
+        return BackupInfo(
+            filename=filename,
+            path=str(filepath),
+            size_bytes=stat.st_size,
+            memory_count=len(memories),
+            created_at=datetime.fromtimestamp(stat.st_mtime),
+            backup_type=backup_type_str,
+        )
+    except Exception as e:
+        logger.error(f"Failed to create backup: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

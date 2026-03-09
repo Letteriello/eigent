@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.model.enums import MemoryType, SummaryLevel
+from app.model.enums import AccessLevel, MemoryStatus, MemoryType, SummaryLevel
 
 
 class MemoryCreate(BaseModel):
@@ -42,6 +42,14 @@ class MemoryCreate(BaseModel):
         default=None,
         description="Optional session ID for session-scoped memories",
     )
+    project_id: str | None = Field(
+        default=None,
+        description="Project ID for multi-agent memory scoping",
+    )
+    access_level: AccessLevel = Field(
+        default=AccessLevel.private,
+        description="Access level: private, team, or global",
+    )
 
 
 class MemoryUpdate(BaseModel):
@@ -58,6 +66,14 @@ class MemoryUpdate(BaseModel):
     metadata: dict[str, Any] | None = Field(
         default=None,
         description="Updated metadata",
+    )
+    access_level: AccessLevel | None = Field(
+        default=None,
+        description="Update access level (private, team, global)",
+    )
+    project_id: str | None = Field(
+        default=None,
+        description="Update project ID",
     )
 
 
@@ -79,6 +95,14 @@ class MemoryResponse(BaseModel):
         default=None,
         description="Session ID for session-scoped memories",
     )
+    project_id: str | None = Field(
+        default=None,
+        description="Project ID for multi-agent memory scoping",
+    )
+    access_level: AccessLevel = Field(
+        default=AccessLevel.private,
+        description="Access level: private, team, or global",
+    )
     importance: float = Field(
         default=1.0,
         description="Importance score (0-1) for memory prioritization",
@@ -99,6 +123,14 @@ class MemoryResponse(BaseModel):
         default=False,
         description="Whether this memory's content is encrypted",
     )
+    status: MemoryStatus = Field(
+        default=MemoryStatus.active,
+        description="Lifecycle status of the memory",
+    )
+    last_accessed_at: datetime | None = Field(
+        default=None,
+        description="Last time this memory was accessed/recalled",
+    )
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
@@ -117,6 +149,14 @@ class MemorySearchQuery(BaseModel):
     agent_id: str | None = Field(
         default=None,
         description="Filter by agent ID",
+    )
+    project_id: str | None = Field(
+        default=None,
+        description="Filter by project ID for multi-agent scoping",
+    )
+    access_level: AccessLevel | None = Field(
+        default=None,
+        description="Filter by access level (private, team, global)",
     )
     top_k: int = Field(
         default=5,
@@ -301,4 +341,90 @@ class MemoryStats(BaseModel):
     last_cleanup: datetime | None = Field(
         default=None,
         description="Last cleanup timestamp",
+    )
+    # Metrics added for observability
+    orphan_count: int = Field(
+        default=0,
+        description="Number of memories never recalled",
+    )
+    avg_importance: float = Field(
+        default=0.0,
+        description="Average importance score across all memories",
+    )
+    search_stats: dict[str, int | float] = Field(
+        default_factory=dict,
+        description="Search metrics: total_searches, avg_latency_ms, zero_results_count",
+    )
+    tool_call_stats: dict[str, int] = Field(
+        default_factory=dict,
+        description="Tool call counts by tool name",
+    )
+
+
+# ========= Backup Models =========
+
+
+class BackupInfo(BaseModel):
+    """Schema for backup file information."""
+
+    filename: str = Field(..., description="Backup filename")
+    path: str = Field(..., description="Full path to backup file")
+    size_bytes: int = Field(..., description="File size in bytes")
+    memory_count: int = Field(..., description="Number of memories in backup")
+    created_at: datetime = Field(..., description="Backup creation timestamp")
+    backup_type: str = Field(
+        default="full",
+        description="Type: full, incremental, or manual",
+    )
+
+
+class BackupCreate(BaseModel):
+    """Schema for creating a backup."""
+
+    backup_type: str = Field(
+        default="manual",
+        description="Type: full, incremental, or manual",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Optional description for the backup",
+    )
+
+
+class BackupList(BaseModel):
+    """Schema for listing backups."""
+
+    backups: list[BackupInfo] = Field(
+        default_factory=list,
+        description="List of available backups",
+    )
+    total_size_bytes: int = Field(
+        default=0,
+        description="Total size of all backups",
+    )
+
+
+class ImportRequest(BaseModel):
+    """Schema for importing memories."""
+
+    merge_strategy: str = Field(
+        default="skip",
+        description="Strategy: skip, update, or replace",
+    )
+    encrypt_imported: bool = Field(
+        default=False,
+        description="Whether to encrypt imported memories",
+    )
+
+
+class ImportResult(BaseModel):
+    """Schema for import operation results."""
+
+    imported: int = Field(..., description="Number of memories imported")
+    skipped: int = Field(..., description="Number of memories skipped")
+    updated: int = Field(..., description="Number of memories updated")
+    failed: int = Field(..., description="Number of memories that failed")
+    errors: list[str] = Field(
+        default_factory=list,
+        description="List of error messages",
     )

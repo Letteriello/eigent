@@ -76,18 +76,29 @@ class SummarizationScheduler:
         results = {
             "sessions_summarized": 0,
             "summaries_consolidated": 0,
+            "lifecycle_transitions": {"stale_marked": 0, "archived": 0, "deleted": 0},
             "errors": [],
             "timestamp": datetime.utcnow().isoformat(),
         }
 
         try:
-            # Step 1: Summarize old sessions
+            # Step 1: Lifecycle transitions (always run first)
+            if self.memory_service:
+                lifecycle_result = await self.memory_service.daily_lifecycle_cleanup(
+                    stale_threshold_days=14,
+                    retention_days=30,
+                    archive_retention_days=60,
+                )
+                results["lifecycle_transitions"] = lifecycle_result
+                logger.info(f"Lifecycle transitions: {lifecycle_result}")
+
+            # Step 2: Summarize old sessions
             sessions_result = await self.summarize_old_sessions(
                 age_days=self.config.age_threshold_days
             )
             results["sessions_summarized"] = sessions_result.get("count", 0)
 
-            # Step 2: Consolidate old summaries
+            # Step 3: Consolidate old summaries
             consolidation_result = await self.consolidate_old_summaries(
                 age_days=self.config.consolidate_age_days
             )
@@ -95,7 +106,8 @@ class SummarizationScheduler:
 
             logger.info(
                 f"Summarization complete: {results['sessions_summarized']} sessions, "
-                f"{results['summaries_consolidated']} consolidated"
+                f"{results['summaries_consolidated']} consolidated, "
+                f"lifecycle: {results['lifecycle_transitions']}"
             )
 
         except Exception as e:
